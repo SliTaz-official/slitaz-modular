@@ -41,6 +41,7 @@ UPDATE_HG="no"
 BACKUP_SOURCES="no"
 BACKUP_PACKAGES="no"
 CLEAN_MODULES_DIR="no"
+CLEAN_INITRAMFS="no"
 HG_LIST="flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-doc slitaz-pizza slitaz-tools tank tazlito tazpkg tazusb tazwok website wok"
 
 error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
@@ -99,6 +100,12 @@ initramfs () {
 		exit 1
 	fi
 
+	if [ "$CLEAN_INITRAMFS" = "yes" ]; then
+		if [ -d ${INITRAMFS} ]; then
+			rm -Rf ${INITRAMFS}
+		fi
+	fi
+	
 	info "Making bootable image"
 	cat "$PROFILE/list/initramfs.list" | grep -v "^#" | while read pkgname; do
 		if [ ! -d ${INITRAMFS}/var/lib/tazpkg/installed/${pkgname} ]; then
@@ -138,7 +145,7 @@ copy_hg() {
 	elif [ -d ${HG_DIR}/hg-${1}/home/slitaz/hg/$1 -a ${UPDATE_HG} = "yes" ]; then
 		info "Updating $1 repo ..."
 		cd ${HG_DIR}/hg-${1}/home/slitaz/hg/$1 &&
-		hg pull && hg update
+		hg pull -u
 		cd $PROFILE
 	fi
 }
@@ -350,6 +357,11 @@ make_iso () {
     md5sum "${IMGNAME}" > $IMGMD5NAME
 }
 
+if [ "$MODULES" != "" ]; then
+	union
+else
+	error "MODULES was empty. exiting."
+	exit 1
+fi
 
-union
 make_iso
