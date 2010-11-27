@@ -105,7 +105,11 @@ initramfs () {
 			rm -Rf ${INITRAMFS}
 		fi
 	fi
-	
+
+	if [ ! -d ${INITRAMFS} ]; then
+		mkdir -p $INITRAMFS
+	fi
+
 	info "Making bootable image"
 	cat "$PROFILE/list/initramfs.list" | grep -v "^#" | while read pkgname; do
 		if [ ! -d ${INITRAMFS}/var/lib/tazpkg/installed/${pkgname} ]; then
@@ -192,7 +196,6 @@ union () {
 	mkdir -p $WORKING
 	mkdir -p $UNION
 	mkdir -p $LOG
-	mkdir -p $INITRAMFS
 	mkdir -p $ISODIR/${CDNAME}/base
 	mkdir -p $ISODIR/${CDNAME}/modules
 	mkdir -p $ISODIR/${CDNAME}/optional
