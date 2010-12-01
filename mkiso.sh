@@ -112,7 +112,7 @@ initramfs () {
 
 	info "Making bootable image"
 	cat "$PROFILE/list/initramfs.list" | grep -v "^#" | while read pkgname; do
-		if [ ! -d ${INITRAMFS}/var/lib/tazpkg/installed/${pkgname} ]; then
+		if [ ! -f ${INITRAMFS}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
 			tazpkg get-install $pkgname --root=$INITRAMFS | tee -a $LOG/initramfs.log
 			sleep 1
 		else
@@ -170,7 +170,7 @@ slitaz_union () {
 	elif [ ! -d ${MODULES_DIR}/${mod}/var/lib/tazpkg/installed ]; then
 		if [ -f "$PROFILE/list/${mod}.list" ]; then
 			cat "$PROFILE/list/${mod}.list" | grep -v "^#" | while read pkgname; do
-				if [ ! -d ${UNION}/var/lib/tazpkg/installed/${pkgname} ]; then
+				if [ ! -f ${UNION}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
 					tazpkg get-install $pkgname --root=${UNION} | tee -a ${LOG}/${mod}-current.log
 					sleep 1
 				else
@@ -181,7 +181,7 @@ slitaz_union () {
 
 		if [ -f $PROFILE/list/${mod}.removelist ]; then
 			cat "$PROFILE/list/${mod}.removelist" | grep -v "^#" | while read pkgname; do
-				if [ -d ${UNION}/var/lib/tazpkg/installed/${pkgname} ]; then
+				if [ -f ${UNION}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
 					echo "y" | tazpkg remove ${pkgname} --root=${UNION} | tee -a ${LOG}/${mod}-current.log
 					sleep 1
 				else
