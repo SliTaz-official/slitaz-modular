@@ -36,3 +36,12 @@ libarchive
 get-rar
 perl
 get-flash-plugin
+ttf-dejavu-extra
+openal
+physfs
+quesoglc
+libsdl-net
+libsdl-pango
+libsdl-mixer
+libsdl-perl
+perl-locale-gettext
