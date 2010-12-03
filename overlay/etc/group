@@ -1,0 +1,17 @@
+root:x:0:
+lp:x:10:
+audio:x:20:
+messagebus:x:25:
+haldaemon:x:26:
+nogroup:x:99:
+www:x:80:
+cdrom:x:30:
+dialout:x:31:
+disk:x:32:
+floppy:x:33:
+kmem:x:34:
+tape:x:35:
+tty:x:36:
+vboxusers:x:37:
+video:x:38:
+clamav:x:39:
