@@ -23,6 +23,8 @@ pcsxr-svn
 visualboyadvance-gtk
 virtualbox-ose
 vlc
+recorder
+wine
 #libs-only
 python
 patch
@@ -37,6 +39,10 @@ get-rar
 perl
 get-flash-plugin
 ttf-dejavu-extra
+libdvdcss
+libdvdread
+mpg123
+dvd+rw-tools
 openal
 physfs
 quesoglc
@@ -45,3 +51,4 @@ libsdl-pango
 libsdl-mixer
 libsdl-perl
 perl-locale-gettext
+espeak
