@@ -21,8 +21,8 @@ CDNAME="slitaz"
 RMSTUFF=n
 MVSTUFF=n
 UNGZIP=n
-EXT="sqfs"
-COMPRESSION="gzip"
+EXT="xz"
+COMPRESSION="xz -Xbcj x86"
 MKOPTION="-b 256k"
 MODULES=""
 WORKING="$PROFILE/working"
@@ -32,9 +32,11 @@ LOG="$WORKING/log"
 ISODIR="$WORKING/iso"
 IMGNAME="$PROFILE/$CDNAME-$(date +%F).iso"
 IMGMD5NAME="$IMGNAME.md5"
-LASTBR="$WORKING/empty"
+LASTBR="$INITRAMFS"
 SGNFILE="$ISODIR/$CDNAME/livecd.sgn"
 MODULES_DIR="$WORKING/modules"
+ROOT_MOD="$(ls -1 ${PROFILE}/list | head -1)"
+INIT_ROOT="$MODULES_DIR/$(basename ${ROOT_MOD} .list)"
 HG_DIR="$WORKING/hg"
 COPY_HG="no"
 UPDATE_HG="no"
@@ -124,22 +126,19 @@ initramfs () {
 		mkdir -p $ISODIR/boot
 	fi
 
-	if [ ! -f $ISODIR/boot/bzImage ]; then
+	#if [ ! -f $ISODIR/boot/bzImage ]; then
 		cp -f $INITRAMFS/boot/vmlinuz* $ISODIR/boot/bzImage
 		rm -f $INITRAMFS/boot/vmlinuz*
-	fi
+	#fi
 
 	info "Copying isolinux files..."
-	if [ -d $INITRAMFS/boot/isolinux ]; then
-		cp -a $INITRAMFS/boot/isolinux $ISODIR/boot
+	if [ -d $INST_ROOT/boot/isolinux ]; then
+		cp -a $INST_ROOT/boot/isolinux $ISODIR/boot
 	fi
 
 	if [ -d $PROFILE/initramfs ]; then
 		cp -af $PROFILE/initramfs/* $INITRAMFS
 	fi
-
-	info "Creating rootfs.gz"
-	pack_rootfs $INITRAMFS $ISODIR/boot/rootfs.gz
 }
 
 copy_hg() {
@@ -209,13 +208,17 @@ union () {
 		error "Error loading Union filesystem module. (aufs)"
 		exit 1
 	fi
+	
+	# $INITRAMFS is now $LASTBR
+	# This will be copyed to /mnt/memory/changes on boot
+	initramfs
 
 	mount -t aufs -o br:${LASTBR}=rw aufs ${UNION}
 	if [ $? -ne 0 ]; then 
 		error "Error mounting $union."
 		exit 1
 	fi
-
+	
 	info "====> Installing packages to '$UNION'"
 	for mod in $MODULES; do
 
@@ -343,7 +346,10 @@ imgcommon () {
 
 make_iso () {
 	imgcommon
-	initramfs
+	#initramfs
+
+	info "Creating rootfs.gz"
+	pack_rootfs $INITRAMFS $ISODIR/boot/rootfs.gz
 
 	if [ -d ${PROFILE}/overlay ]; then
 		_overlay
