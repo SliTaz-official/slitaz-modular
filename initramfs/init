@@ -9,6 +9,15 @@ launch_init()
 launch_init_modular()
 {
 	echo -e "\\033[70G[ \\033[1;33mOK\\033[0;39m ]"
+	[ -d /mnt/memory/initramfs ] || mkdir -p /mnt/memory/initramfs
+	SYS_DIR="dev bin etc boot lib sbin home root usr var"
+	for dir in $SYS_DIR; do
+		cp -a /$dir /mnt/memory/initramfs
+	done
+	MK_DIR="sys proc tmp media mnt"
+	for dir1 in $MK_DIR; do
+		mkdir -p /mnt/memory/initramfs/$dir
+	done
 	exec /sbin/switch_root mnt /linuxrc
 }
 
@@ -126,6 +135,10 @@ if grep -q loopfs= /proc/cmdline; then
 	try_init
 fi
 grep -q cryptoroot= /proc/cmdline && try_init
+if grep -q rootuuid= /proc/cmdline; then
+	root="$(sed 's/.*rootuuid=\([^ ]*\).*/\1/' < /proc/cmdline)"
+	mount $(blkid | grep $root | sed 's/:.*//') /mnt && try_init
+fi
 umount /sys
 echo -n "Switching / to tmpfs..."
 size="$(grep rootfssize= < /proc/cmdline | \

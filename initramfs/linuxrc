@@ -178,6 +178,14 @@ if [ $? -ne 0 ]; then dmesg | tail -n 1; fatal "can't setup union (aufs)"; fi
 
 debug_shell
 
+# setup initramfs if it exist
+if [ -d /memory/initramfs ]; then
+	echolog "Setup initramfs for first module..."
+	mount -n -o remount,add:1:/memory/initramfs=ro aufs $UNION
+fi
+
+debug_shell
+
 # If toram or copy2ram boot parameter is present, copy all fs modules to RAM.
 # (skip modules from /optional/ which are not listed in load= boot option)
 # Finaly modify DATA variable so it will point to correct directory
