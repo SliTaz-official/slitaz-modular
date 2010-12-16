@@ -150,3 +150,6 @@ libwebkit
 midori
 gettext-base
 xorg-xf86-input-synaptics
+htop
+aufs-utils
+squashfs
