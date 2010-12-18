@@ -15,7 +15,8 @@ export LABEL="slitaz_$(date +%Y%m)"
 PUBLISHER="Slitaz"
 APPLICATION="Slitaz"
 CREATE_DEFAULT="n"
-PROFILE="$(pwd)"
+BASEDIR="$(pwd)"
+PROFILE="$BASEDIR/$1"
 ver=""
 CDNAME="slitaz"
 RMSTUFF=n
@@ -35,8 +36,6 @@ IMGMD5NAME="$IMGNAME.md5"
 LASTBR="$INITRAMFS"
 SGNFILE="$ISODIR/$CDNAME/livecd.sgn"
 MODULES_DIR="$WORKING/modules"
-ROOT_MOD="$(ls -1 ${PROFILE}/list | head -1)"
-INIT_ROOT="$MODULES_DIR/$(basename ${ROOT_MOD} .list)"
 HG_DIR="$WORKING/hg"
 COPY_HG="no"
 UPDATE_HG="no"
@@ -55,6 +54,11 @@ info () { echo -e "\033[1;32;40m>>> \033[1;37;40m$@\033[1;0m"; }
 #    error "error: This script must be run as root."
 #    exit 1
 #fi
+if [ "$1" = "" ]; then
+	echo "$0 profile-name"
+	echo "ex $0 core"
+	exit 1
+fi
 
 if [ -f ${PROFILE}/config ]; then
 	source ${PROFILE}/config
@@ -97,7 +101,7 @@ pack_rootfs()
 
 initramfs () {
 
-	if [ ! -e "$PROFILE/list/initramfs.list" ]; then
+	if [ ! -e "$BASEDIR/initramfs/initramfs.list" ]; then
 		error "error: $PROFILE/list/initramfs.list doesn't exist, aborting."
 		exit 1
 	fi
@@ -113,7 +117,7 @@ initramfs () {
 	fi
 
 	info "Making bootable image"
-	cat "$PROFILE/list/initramfs.list" | grep -v "^#" | while read pkgname; do
+	cat "$BASEDIR/initramfs/initramfs.list" | grep -v "^#" | while read pkgname; do
 		if [ ! -f ${INITRAMFS}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
 			tazpkg get-install $pkgname --root=$INITRAMFS | tee -a $LOG/initramfs.log
 			sleep 1
@@ -130,14 +134,18 @@ initramfs () {
 		cp -f $INITRAMFS/boot/vmlinuz* $ISODIR/boot/bzImage
 		rm -f $INITRAMFS/boot/vmlinuz*
 	#fi
+	
+	if [ -d $PROFILE/rootcd ]; then
+		cp -af $PROFILE/rootcd/* $ISODIR/
+	fi
 
 	info "Copying isolinux files..."
 	if [ -d $INST_ROOT/boot/isolinux ]; then
 		cp -a $INST_ROOT/boot/isolinux $ISODIR/boot
 	fi
 
-	if [ -d $PROFILE/initramfs ]; then
-		cp -af $PROFILE/initramfs/* $INITRAMFS
+	if [ -d $BASEDIR/initramfs ]; then
+		cp -af $BASEDIR/initramfs/* $INITRAMFS
 	fi
 }
 
@@ -356,14 +364,14 @@ make_iso () {
 	fi
 
 	info "Creating ISO image..."
-		genisoimage -R -o $IMGNAME -b boot/isolinux/isolinux.bin \
-		-c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
-		-V "SliTaz" -input-charset iso8859-1 -boot-info-table $ISODIR
+	genisoimage -R -o $IMGNAME -b boot/isolinux/isolinux.bin \
+	-c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
+	-V "SliTaz" -input-charset iso8859-1 -boot-info-table $ISODIR
 	if [ -x /usr/bin/isohybrid ]; then
 		info "Creating hybrid ISO..."
 		isohybrid "${IMGNAME}"
 	fi
-    md5sum "${IMGNAME}" > $IMGMD5NAME
+	md5sum "${IMGNAME}" > $IMGMD5NAME
 }
 
 if [ "$MODULES" != "" ]; then

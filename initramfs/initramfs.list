@@ -1,12 +1,9 @@
 busybox
-gcc-lib-base
 glibc-base
 kbd-busybox
 linux
 slitaz-base-files
 slitaz-boot-scripts
-sysfsutils
-udev
 zlib
 linux-squashfs
 aufs

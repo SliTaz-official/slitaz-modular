@@ -1,0 +1,66 @@
+README SliTaz GNU/Linux CD                                        November 2010
+===============================================================================
+
+
+Français
+--------
+Ce cdrom est un système autonome Live, il vous suffit de démarrer sur le CD
+(booter) et SliTaz se lance en mémoire vive (RAM), sans toucher à votre système
+actuel. SliTaz peut fonctionner des mois entiers sans redémarrer, le système
+peut fonctionner dans 144 Mb de mémoire vive et sur des machines sans disque dur.
+Mais SliTaz est aussi pleinement installable sur un disque dur et largement
+extensible via le gestionnaire de paquets et la compilation de nouvelles
+applications depuis les sources.
+
+Une fois le système lancé, vous disposez d'un shell ash, et vous pouvez retirer
+le cdrom, car SliTaz utilise la mémoire vive (RAM) de la machine. Le système
+fournit plus de 200 commandes Linux, navigateur web, client de chat IRC,
+support IDE, eth0, usb, le système X et bien plus {...}.
+
+SliTaz peut être utilisé pour réparer, et tester un disque dur avec fdisk,
+hdparm, ou les outils e2fsprogs. Le système et aussi pleinement installable
+avec l'outil slitaz-installer.
+
+Slitaz GNU/Linux est distribué sans aucune garantie et publié car
+potentiellement utile. SliTaz n'as aucune prétention, nous ne sommes que des
+passionnés par l'informatique libre, qui aimons la liberté et le partage. Sur
+le système vous trouverez le manuel d'utilisateur et la documentation dans :
+/usr/share/doc, et les licences complète dans : /usr/share/licenses.
+
+Havefun!
+
+
+English
+-------
+SliTaz is a micro GNU/Linux distro using BusyBox, a Linux kernel, and GNU
+free software. SliTaz also use goodies from the Debian project. The goal of
+SliTaz is to have a GNU/Linux distro working entirely in memory (RAM). SliTaz 
+boots with Syslinux, provides more than 200 Linux commands, a SSH server/client 
+powered by Dropbear, rescue tools, and much more {...}.
+
+On the system you will find documentation in /usr/share/doc, and the full
+GPL license in /usr/share/licenses.
+
+
+LICENSE
+-------
+
+Copyright (c)  2007  SliTaz GNU/Linux
+
+SliTaz is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+SliTaz is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with SliTaz; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+
+===============================================================================
+                                                         http://www.slitaz.org/
