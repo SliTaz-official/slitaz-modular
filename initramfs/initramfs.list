@@ -5,6 +5,7 @@ linux
 slitaz-base-files
 slitaz-boot-scripts
 zlib
+syslinux
 linux-squashfs
 aufs
 module-init-tools

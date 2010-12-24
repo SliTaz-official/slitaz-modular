@@ -54,11 +54,14 @@ info () { echo -e "\033[1;32;40m>>> \033[1;37;40m$@\033[1;0m"; }
 #    error "error: This script must be run as root."
 #    exit 1
 #fi
-if [ "$1" = "" ]; then
+if [ ! -d $PROFILE -o "$1" = "" ]; then
 	echo "$0 profile-name"
 	echo "ex $0 core"
 	exit 1
 fi
+
+ROOT_MOD="$(ls -1 ${PROFILE}/list | head -1)"
+INST_ROOT="${MODULES_DIR}/$(basename ${ROOT_MOD} .list)"
 
 if [ -f ${PROFILE}/config ]; then
 	source ${PROFILE}/config
@@ -102,7 +105,7 @@ pack_rootfs()
 initramfs () {
 
 	if [ ! -e "$BASEDIR/initramfs/initramfs.list" ]; then
-		error "error: $PROFILE/list/initramfs.list doesn't exist, aborting."
+		error "error: $BASEDIR/initramfs/initramfs.list doesn't exist, aborting."
 		exit 1
 	fi
 
@@ -134,15 +137,6 @@ initramfs () {
 		cp -f $INITRAMFS/boot/vmlinuz* $ISODIR/boot/bzImage
 		rm -f $INITRAMFS/boot/vmlinuz*
 	#fi
-	
-	if [ -d $PROFILE/rootcd ]; then
-		cp -af $PROFILE/rootcd/* $ISODIR/
-	fi
-
-	info "Copying isolinux files..."
-	if [ -d $INST_ROOT/boot/isolinux ]; then
-		cp -a $INST_ROOT/boot/isolinux $ISODIR/boot
-	fi
 
 	if [ -d $BASEDIR/initramfs ]; then
 		cp -af $BASEDIR/initramfs/* $INITRAMFS
@@ -354,10 +348,18 @@ imgcommon () {
 
 make_iso () {
 	imgcommon
-	#initramfs
 
 	info "Creating rootfs.gz"
 	pack_rootfs $INITRAMFS $ISODIR/boot/rootfs.gz
+
+	if [ -d $PROFILE/rootcd ]; then
+		cp -af $PROFILE/rootcd/* $ISODIR/
+	fi
+
+	info "Copying isolinux files..."
+	if [ -d $INITRAMFS/boot/isolinux ]; then
+		cp -a $INITRAMFS/boot/isolinux $ISODIR/boot
+	fi
 
 	if [ -d ${PROFILE}/overlay ]; then
 		_overlay
