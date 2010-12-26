@@ -31,12 +31,12 @@ INITRAMFS="$WORKING/initramfs"
 UNION="$WORKING/union"
 LOG="$WORKING/log"
 ISODIR="$WORKING/iso"
-IMGNAME="$PROFILE/$CDNAME-$(date +%F).iso"
+IMGNAME="$PROFILE/$CDNAME-$1-$(date +%F).iso"
 IMGMD5NAME="$IMGNAME.md5"
 LASTBR="$INITRAMFS"
 SGNFILE="$ISODIR/$CDNAME/livecd.sgn"
 MODULES_DIR="$WORKING/modules"
-HG_DIR="$WORKING/hg"
+HG_DIR="/home/slitaz/hg"
 COPY_HG="no"
 UPDATE_HG="no"
 BACKUP_SOURCES="no"
@@ -144,12 +144,12 @@ initramfs () {
 }
 
 copy_hg() {
-	if [ ! -d ${HG_DIR}/hg-${1}/home/slitaz/hg/$1 ]; then
+	if [ ! -d ${HG_DIR}/${1}/home/slitaz/hg/$1 ]; then
 		info "Cloning $1 repo ..."
-		hg clone http://hg.slitaz.org/$1 ${HG_DIR}/hg-${1}/home/slitaz/hg/$1
-	elif [ -d ${HG_DIR}/hg-${1}/home/slitaz/hg/$1 -a ${UPDATE_HG} = "yes" ]; then
+		hg clone http://hg.slitaz.org/$1 ${HG_DIR}/${1}/home/slitaz/hg/$1
+	elif [ -d ${HG_DIR}/${1}/home/slitaz/hg/$1 -a ${UPDATE_HG} = "yes" ]; then
 		info "Updating $1 repo ..."
-		cd ${HG_DIR}/hg-${1}/home/slitaz/hg/$1 &&
+		cd ${HG_DIR}/${1}/home/slitaz/hg/$1 &&
 		hg pull -u
 		cd $PROFILE
 	fi
@@ -159,8 +159,8 @@ squashfs_hg() {
 	if [ ! -d "$ISODIR/$CDNAME/modules/hg" ]; then
 		mkdir -p "$ISODIR/$CDNAME/modules/hg"
 	fi
-	if [ -d ${HG_DIR}/hg-${1}/home/slitaz/hg/$1 ]; then
-		_mksquash ${HG_DIR}/hg-${1} "$ISODIR/$CDNAME/modules/hg" /home/slitaz/hg/$1
+	if [ -d ${HG_DIR}/${1}/home/slitaz/hg/$1 ]; then
+		_mksquash ${HG_DIR}/${1} "$ISODIR/$CDNAME/modules/hg" /home/slitaz/hg/$1
 	fi
 }
 
@@ -313,7 +313,7 @@ imgcommon () {
 
 	if [ "${HG_LIST}" != "" ]; then
 		for hg in ${HG_LIST}; do
-			if [ -d "${MODULES_DIR}/hg-${hg}" ]; then
+			if [ -d "${MODULES_DIR}/${hg}" ]; then
 				squashfs_hg $hg
 			fi
 		done
