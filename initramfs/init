@@ -2,6 +2,7 @@
 
 launch_init()
 {
+	umount /proc
 	echo -e "\\033[70G[ \\033[1;33mOK\\033[0;39m ]"
 	exec /sbin/switch_root mnt /sbin/init
 }
@@ -9,20 +10,21 @@ launch_init()
 launch_init_modular()
 {
 	echo -e "\\033[70G[ \\033[1;33mOK\\033[0;39m ]"
-	[ -d /mnt/memory/initramfs ] || mkdir -p /mnt/memory/initramfs
+	[ -d /mnt/initramfs ] || mkdir -p /mnt/initramfs
 	SYS_DIR="dev bin etc boot lib sbin home root usr var"
 	for dir in $SYS_DIR; do
-		cp -a /$dir /mnt/memory/initramfs
+		cp -a /$dir /mnt/initramfs
 	done
 	MK_DIR="sys proc tmp media mnt"
 	for dir1 in $MK_DIR; do
-		mkdir -p /mnt/memory/initramfs/$dir
+		mkdir -p /mnt/initramfs/$dir
 	done
 	exec /sbin/switch_root mnt /linuxrc
 }
 
 failed()
 {
+	umount /proc
 	echo -e "\\033[70G[ \\033[1;31mFailed\\033[0;39m ]"
 }
 
@@ -51,7 +53,7 @@ try_init()
 		[ -n "$1" ] && for i in $@ ; do
 			cp -a $i /mnt$(dirname $i)
 		done
-		umount /proc
+		mount /mnt -o remount,ro
 		launch_init
 	fi
 	failed
@@ -105,6 +107,8 @@ if grep -q softraid= /proc/cmdline; then
 	root="$(sed 's/.*softraid=\([^ ]*\).*/\1/' < /proc/cmdline)"
 	echo -n "Switching / to softraid $root..."
 	mdadm --examine --scan --config=partitions > /etc/mdadm.conf
+	grep -qs " $root " /etc/mdadm.conf ||
+		root=$(awk '/dev.md/ { print $2; exit }' < /etc/mdadm.conf)
 	grep level=raid /etc/mdadm.conf | load_raid
 	mdadm --assemble --scan
 	lvmsetup 
@@ -114,11 +118,10 @@ if lvmsetup; then
 	echo -n "Switching / to lvm $root..."
 	mount_mapper
 fi
-if grep -q loopfs= /proc/cmdline; then
-	loopfs="$(sed 's/.*loopfs=\([^ ]*\).*/\1/' < /proc/cmdline)"
-	dev=${loopfs%,*}
-	loopfs=${loopfs#*,}
-	echo -n "Switching / to loop $loopfs on $dev..."
+if grep -q mount= /proc/cmdline; then
+	root="$(sed 's/.*mount=\([^ ]*\).*/\1/' < /proc/cmdline)"
+	dev=$(blkid | grep $root | sed 's/:.*//;q')
+	echo -n "Mounting $dev ($root) ..."
 	if ! mount $dev /mnt; then
 		if echo $dev | grep -q "/dev/sd"; then
 			delay=`cat /sys/module/usb_storage/parameters/delay_use`
@@ -126,20 +129,27 @@ if grep -q loopfs= /proc/cmdline; then
 			echo -n "sleep for $delay seconds..."
 			sleep $delay
 		fi
-		mount $dev /mnt || loopfs=""
+		mount $dev /mnt
 	fi
-	if [ -n "$loopfs" ]; then
-		losetup /dev/loop0 /mnt/$loopfs
-		mount /dev/loop0 /mnt 2> /dev/null
-	fi
-	try_init
+fi
+if grep -q loopfs= /proc/cmdline; then
+	loopfs="$(sed 's/.*loopfs=\([^ ]*\).*/\1/' < /proc/cmdline)"
+	echo -n "Switching / to loop $loopfs..."
+	losetup /dev/loop0 /mnt/$loopfs
+	mount /dev/loop0 /mnt 2> /dev/null
 fi
 grep -q cryptoroot= /proc/cmdline && try_init
-if grep -q rootuuid= /proc/cmdline; then
-	root="$(sed 's/.*rootuuid=\([^ ]*\).*/\1/' < /proc/cmdline)"
-	mount $(blkid | grep $root | sed 's/:.*//') /mnt && try_init
-fi
 umount /sys
+if grep -q subroot= /proc/cmdline; then
+	subroot="/$(sed 's/.*subroot=\([^ ]*\).*/\1/' < /proc/cmdline)" &&
+	if [ -s /usr/share/boot/busybox-static ]; then
+		mv /usr/share/boot/busybox-static .
+		/busybox-static rm -rf /etc /lib /*bin /usr /var
+		exec /busybox-static chroot /mnt$subroot /sbin/init
+	else
+		exec chroot /mnt$subroot /sbin/init
+	fi
+fi
 echo -n "Switching / to tmpfs..."
 size="$(grep rootfssize= < /proc/cmdline | \
 	sed 's/.*rootfssize=\([0-9]*[kmg%]\).*/-o size=\1/')"

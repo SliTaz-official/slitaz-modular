@@ -179,9 +179,9 @@ if [ $? -ne 0 ]; then dmesg | tail -n 1; fatal "can't setup union (aufs)"; fi
 debug_shell
 
 # setup initramfs if it exist
-if [ -d /memory/initramfs ]; then
+if [ -d /initramfs ]; then
 	echolog "Setup initramfs for first module..."
-	mount -n -o remount,add:1:/memory/initramfs=ro aufs $UNION
+	mount -n -o remount,add:1:/initramfs=ro aufs $UNION
 fi
 
 debug_shell
