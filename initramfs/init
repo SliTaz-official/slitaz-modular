@@ -17,7 +17,7 @@ launch_init_modular()
 	done
 	MK_DIR="sys proc tmp media mnt"
 	for dir1 in $MK_DIR; do
-		mkdir -p /mnt/initramfs/$dir
+		mkdir -p /mnt/initramfs/$dir1
 	done
 	exec /sbin/switch_root mnt /linuxrc
 }
