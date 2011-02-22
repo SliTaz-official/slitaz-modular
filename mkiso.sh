@@ -1,13 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-if [ -f "./tazwok.conf" ]; then
-	. ./tazwok.conf
-elif [ -f "/etc/tazwok.conf" ]; then
-	. /etc/tazwok.conf
-else
-	echo -e "\nUnable to find tazwok configuration file : /etc/tazwok.conf"
-	exit 1
-fi
+. /etc/slitaz/slitaz.conf 
 
 QUIET="y"
 FORCE="y"
@@ -36,14 +29,16 @@ IMGMD5NAME="$IMGNAME.md5"
 LASTBR="$INITRAMFS"
 SGNFILE="$ISODIR/$CDNAME/livecd.sgn"
 MODULES_DIR="$WORKING/modules"
-HG_DIR="/home/slitaz/hg"
+HG_DIR="$WORKING/hg"
+HG_URL="http://hg.slitaz.org"
+HG_PATH="home/slitaz/repos"
 COPY_HG="no"
 UPDATE_HG="no"
 BACKUP_SOURCES="no"
 BACKUP_PACKAGES="no"
 CLEAN_MODULES_DIR="no"
 CLEAN_INITRAMFS="no"
-HG_LIST="flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-doc slitaz-pizza slitaz-tools tank tazlito tazpkg tazusb tazwok website wok"
+HG_LIST="flavors flavors-stable libtaz slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-doc slitaz-forge slitaz-pizza slitaz-tools tank tazchroot tazlito tazpkg tazusb tazwok tazwok-experimental website wok wok-stable wok-tiny wok-undigest"
 
 error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
 warn ()  { echo -e "\033[1;33;40m*** \033[1;37;40m$@\033[1;0m"; }
@@ -102,6 +97,13 @@ pack_rootfs()
 	echo 1 > /tmp/rootfs
 }
 
+download()
+{
+	for file in $@; do
+		wget -q $file && break
+	done
+}
+
 initramfs () {
 
 	if [ ! -e "$BASEDIR/initramfs/initramfs.list" ]; then
@@ -144,13 +146,23 @@ initramfs () {
 }
 
 copy_hg() {
-	if [ ! -d ${HG_DIR}/${1}/home/slitaz/hg/$1 ]; then
+	if [ ! -d ${HG_DIR}/${1}/${HG_PATH}/${1} ]; then
 		info "Cloning $1 repo ..."
-		hg clone http://hg.slitaz.org/$1 ${HG_DIR}/${1}/home/slitaz/hg/$1
-	elif [ -d ${HG_DIR}/${1}/home/slitaz/hg/$1 -a ${UPDATE_HG} = "yes" ]; then
+		hg clone $HG_URL/${1} ${HG_DIR}/${1}/${HG_PATH}/${1}
+		if [ $(grep -l "^HG_URL=$HG_URL" $PROFILE/config) ]; then
+			if [ ! $(grep -l "$HG_URL" ${HG_DIR}/${1}/${HG_PATH}/${1}/.hg/hgrc) ]; then
+				echo "mirror = $HG_URL/$1" >> ${HG_DIR}/${1}/${HG_PATH}/${1}/.hg/hgrc
+			fi
+		fi
+	elif [ -d ${HG_DIR}/${1}/${HG_PATH}/${1} -a ${UPDATE_HG} = "yes" ]; then
 		info "Updating $1 repo ..."
-		cd ${HG_DIR}/${1}/home/slitaz/hg/$1 &&
-		hg pull -u
+		cd ${HG_DIR}/${1}/${HG_PATH}/${1}
+		hg pull $HG_URL/${1} -u
+		if [ $(grep -l "^HG_URL=$HG_URL" $PROFILE/config) ]; then
+			if [ ! $(grep -l "$HG_URL" ${HG_DIR}/${1}/${HG_PATH}/${1}/.hg/hgrc) ]; then
+				echo "mirror = $HG_URL/$1" >> ${HG_DIR}/${1}/${HG_PATH}/${1}/.hg/hgrc
+			fi
+		fi
 		cd $PROFILE
 	fi
 }
@@ -159,8 +171,8 @@ squashfs_hg() {
 	if [ ! -d "$ISODIR/$CDNAME/modules/hg" ]; then
 		mkdir -p "$ISODIR/$CDNAME/modules/hg"
 	fi
-	if [ -d ${HG_DIR}/${1}/home/slitaz/hg/$1 ]; then
-		_mksquash ${HG_DIR}/${1} "$ISODIR/$CDNAME/modules/hg" /home/slitaz/hg/$1
+	if [ -d ${HG_DIR}/${1}/ ]; then
+		_mksquash ${HG_DIR}/${1} "$ISODIR/$CDNAME/modules/hg/" /${HG_PATH}/${1}
 	fi
 }
 
@@ -242,6 +254,11 @@ union () {
 		slitaz_union
 	done
 
+	if [ -d ${UNION}/${INSTALLED} ]; then
+		find ${UNION}/${INSTALLED} -type d | sort > $ISODIR/packages-installed.list
+		sed -i "s|${UNION}/${INSTALLED}/||g" $ISODIR/packages-installed.list
+	fi
+	
 	info "Unmounting union"
 	umount -l "${UNION}"
 
@@ -250,6 +267,87 @@ union () {
 	find ${MODULES_DIR} -type d -name ".wh.*" -exec rm -rf {} \;
 }
 
+backup_pkg() {
+	if [ "${BACKUP_PACKAGES}" = "yes" ]; then
+		[ -d $ISODIR/packages ] && rm -r $ISODIR/packages
+		mkdir -p $ISODIR/packages
+		info "Making cooking list based installed packages in union"
+		tazwok gen-cooklist $ISODIR/packages-installed.list > $ISODIR/cookorder.list
+		#[ -f $INCOMING_REPOSITORY/wok-wanted.txt ] || tazwok gen-wok-db
+		
+		info "Linking all installed packages to $ISODIR/packages"
+		cat $ISODIR/packages-installed.list | while read PACKAGE; do
+			VERSION=$(grep ^VERSION= ${HG_DIR}/wok/${PACKAGE}/receipt | cut -d "=" -f2 | sed -e 's/"//g')
+			CACHE_PACKAGE=$(find $CACHE_DIR/$(cat /etc/slitaz-release)/packages -type f -name "$PACKAGE-$VERSION.tazpkg")	
+			if [ -f $CACHE_PACKAGE ]; then
+				info "Copying $CACHE_PACKAGE to $ISODIR/packages"
+				ln -sf $CACHE_PACKAGE $ISODIR/packages
+			#elif [ ! -f $CACHE_PACKAGE ]; then
+			#	info "$CACHE_PACKAGE doesn't exist. Downloading it."
+			#	cd $CACHE_DIR/$(cat /etc/slitaz-release)/packgages
+			#	tazpkg get $PACKAGE
+			#	cd $WORKING
+			#	if [ -f $CACHE_PACKAGE ]; then
+			#		ln -sf $CACHE_PACKAGE $ISODIR/packages
+			#	fi
+			fi
+		done
+		
+		cat $ISODIR/cookorder.list | while read PACKAGE; do
+			rwanted=$(grep $'\t'$PACKAGE$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
+			echo $rwanted | while read WANTED_PKG; do
+				VERSION=$(grep  ^VERSION= ${HG_DIR}/wok/${WANTED_PKG}/receipt | cut -d "=" -f2 | sed -e 's/"//g')
+				CACHE_PACKAGE=$(find $CACHE_DIR/$(cat /etc/slitaz-release)/packages -type f -name "$WANTED_PKG-$VERSION.tazpkg")
+				if [ -f $CACHE_PACKAGE ]; then
+					info "Copying $CACHE_PACKAGE to $ISODIR/packages"
+					ln -sf $CACHE_PACKAGE $ISODIR/packages
+				#elif [ ! -f $CACHE_PACKAGE ]; then
+				#	info "$CACHE_PACKAGE doesn't exist. Downloading it."
+				#	cd $CACHE_DIR/$(cat /etc/slitaz-release)/packgages &>/dev/null
+				#	tazpkg get $PACKAGE
+				#	cd $WORKING
+				#	if [ -f $CACHE_PACKAGE ]; then
+				#		ln -sf $CACHE_PACKAGE $ISODIR/packages
+				#	fi
+				fi
+			done
+		done
+		
+		[ -d $ISODIR/packages ] && tazwok gen-list $ISODIR/packages
+	fi
+	
+}
+
+backup_src() {
+
+	if [ "${BACKUP_PACKAGES}" = "yes" -a "${BACKUP_SOURCES}" = "yes" ]; then
+			[ -d $SOURCES_REPOSITORY ] || mkdir -p $SOURCES_REPOSITORY
+			[ -d $ISODIR/sources ] || mkdir -p $ISODIR/sources
+			
+			cat $ISODIR/cookorder.list | while read PACKAGE; do
+				WGET_URL=$(grep  ^WGET_URL= ${HG_DIR}/wok/${PACKAGE}/receipt | cut -d "=" -f2 | sed -e 's/"//g' | head -n 1)
+				VERSION=$(grep  ^VERSION= ${HG_DIR}/wok/${PACKAGE}/receipt | cut -d "=" -f2 | sed -e 's/"//g' | head -n 1)
+				TARBALL=$(grep  ^TARBALL= ${HG_DIR}/wok/${PACKAGE}/receipt | cut -d "=" -f2 | sed -e 's/"//g' | head -n 1)
+				
+				if [ ! -f "$SOURCES_REPOSITORY/$TARBALL" ] && \
+					[ ! -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
+					tazwok get-src $PACKAGE --nounpack
+					if [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
+						ln -sf $SOURCES_REPOSITORY/$TARBALL $ISODIR/sources/$TARBALL
+					elif [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
+						ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $ISODIR/sources/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
+					fi
+				else
+					[  -f "$SOURCES_REPOSITORY/$TARBALL" ] && ln -sf $SOURCES_REPOSITORY/$TARBALL $ISODIR/sources/$TARBALL
+				fi
+			done
+			cd $ISODIR/sources
+			info "Make md5sum file for sources"
+			find * -not -type d | grep -v md5sum | xargs md5sum > md5sum
+			cd $WORKING
+	fi
+	
+}
 
 # _mksquash dirname
 _mksquash () {
@@ -317,6 +415,10 @@ imgcommon () {
 				squashfs_hg $hg
 			fi
 		done
+	fi
+	if [ -d ${HG_DIR}/wok ]; then
+		backup_pkg
+		backup_src
 	fi
 	
 	info "====> Making bootable image"
