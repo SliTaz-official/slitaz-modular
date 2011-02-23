@@ -1,4 +1,5 @@
 busybox
+bash
 bzlib
 dialog
 dropbear
@@ -11,6 +12,7 @@ isapnptools
 kbd-busybox
 libcap
 linux
+linux-drm
 lzlib
 lzma
 pcmciautils
@@ -29,3 +31,6 @@ tazwok
 udev
 zlib
 ncurses-common
+kqemu
+linux-firmware
+aufs-utils

@@ -38,7 +38,7 @@ BACKUP_SOURCES="no"
 BACKUP_PACKAGES="no"
 CLEAN_MODULES_DIR="no"
 CLEAN_INITRAMFS="no"
-HG_LIST="flavors flavors-stable libtaz slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-doc slitaz-forge slitaz-pizza slitaz-tools tank tazchroot tazlito tazpkg tazusb tazwok tazwok-experimental website wok wok-stable wok-tiny wok-undigest"
+HG_LIST="flavors flavors-stable libtaz slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-doc slitaz-forge slitaz-pizza slitaz-tools tank tazchroot tazlito tazpkg tazusb tazwok website wok wok-stable wok-tiny wok-undigest"
 
 error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
 warn ()  { echo -e "\033[1;33;40m*** \033[1;37;40m$@\033[1;0m"; }

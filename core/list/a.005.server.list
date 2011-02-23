@@ -1,0 +1,10 @@
+lighttpd
+lighttpd-modules
+php-cli
+mercurial
+awstats
+rrdtool
+slitaz-mercurial-style
+tazpkg-web
+coreutils-context-system
+coreutils-disk

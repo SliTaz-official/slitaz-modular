@@ -81,6 +81,7 @@ tazlito
 tazpkg
 tazusb
 tazwikiss
+tazchroot
 tazwok
 tiff
 transset-df
@@ -134,8 +135,11 @@ sudoku
 desktop-file-utils
 xorg-server
 xorg-xf86-input-evdev
+xorg-xf86-input-mouse
+xorg-xf86-input-keyboard
 xorg-xf86-video-vesa
 xorg-setxkbmap
+xorg-libXvMC
 mhwaveedit
 isomaster
 gcolor2
