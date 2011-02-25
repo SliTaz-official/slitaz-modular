@@ -36,9 +36,12 @@ COPY_HG="no"
 UPDATE_HG="no"
 BACKUP_SOURCES="no"
 BACKUP_PACKAGES="no"
+BACKUP_ALL="no"
 CLEAN_MODULES_DIR="no"
 CLEAN_INITRAMFS="no"
-HG_LIST="flavors flavors-stable libtaz slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-doc slitaz-forge slitaz-pizza slitaz-tools tank tazchroot tazlito tazpkg tazusb tazwok website wok wok-stable wok-tiny wok-undigest"
+PACKAGES_REPOSITORY="$LOCAL_REPOSITORY/packages"
+SOURCES_REPOSITORY="$LOCAL_REPOSITORY/src"
+HG_LIST="flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-forge slitaz-pizza slitaz-tools tazlito tazpkg tazusb tazwok website wok wok-stable wok-tiny wok-undigest"
 
 error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
 warn ()  { echo -e "\033[1;33;40m*** \033[1;37;40m$@\033[1;0m"; }
@@ -269,19 +272,19 @@ union () {
 
 backup_pkg() {
 	if [ "${BACKUP_PACKAGES}" = "yes" ]; then
-		[ -d $ISODIR/packages ] && rm -r $ISODIR/packages
-		mkdir -p $ISODIR/packages
+		[ -d $ISODIR/boot/packages ] && rm -r $ISODIR/boot/packages
+		mkdir -p $ISODIR/boot/packages
 		info "Making cooking list based installed packages in union"
 		tazwok gen-cooklist $ISODIR/packages-installed.list > $ISODIR/cookorder.list
 		#[ -f $INCOMING_REPOSITORY/wok-wanted.txt ] || tazwok gen-wok-db
 		
-		info "Linking all installed packages to $ISODIR/packages"
+		info "Linking all installed packages to $ISODIR/boot/packages"
 		cat $ISODIR/packages-installed.list | while read PACKAGE; do
 			VERSION=$(grep ^VERSION= ${HG_DIR}/wok/${PACKAGE}/receipt | cut -d "=" -f2 | sed -e 's/"//g')
 			CACHE_PACKAGE=$(find $CACHE_DIR/$(cat /etc/slitaz-release)/packages -type f -name "$PACKAGE-$VERSION.tazpkg")	
 			if [ -f $CACHE_PACKAGE ]; then
-				info "Copying $CACHE_PACKAGE to $ISODIR/packages"
-				ln -sf $CACHE_PACKAGE $ISODIR/packages
+				info "Copying $CACHE_PACKAGE to $ISODIR/boot/packages"
+				ln -sf $CACHE_PACKAGE $ISODIR/boot/packages
 			#elif [ ! -f $CACHE_PACKAGE ]; then
 			#	info "$CACHE_PACKAGE doesn't exist. Downloading it."
 			#	cd $CACHE_DIR/$(cat /etc/slitaz-release)/packgages
@@ -299,8 +302,8 @@ backup_pkg() {
 				VERSION=$(grep  ^VERSION= ${HG_DIR}/wok/${WANTED_PKG}/receipt | cut -d "=" -f2 | sed -e 's/"//g')
 				CACHE_PACKAGE=$(find $CACHE_DIR/$(cat /etc/slitaz-release)/packages -type f -name "$WANTED_PKG-$VERSION.tazpkg")
 				if [ -f $CACHE_PACKAGE ]; then
-					info "Copying $CACHE_PACKAGE to $ISODIR/packages"
-					ln -sf $CACHE_PACKAGE $ISODIR/packages
+					info "Copying $CACHE_PACKAGE to $ISODIR/boot/packages"
+					ln -sf $CACHE_PACKAGE $ISODIR/boot/packages
 				#elif [ ! -f $CACHE_PACKAGE ]; then
 				#	info "$CACHE_PACKAGE doesn't exist. Downloading it."
 				#	cd $CACHE_DIR/$(cat /etc/slitaz-release)/packgages &>/dev/null
@@ -313,7 +316,7 @@ backup_pkg() {
 			done
 		done
 		
-		[ -d $ISODIR/packages ] && tazwok gen-list $ISODIR/packages
+		[ -d $ISODIR/boot/packages ] && tazwok gen-list $ISODIR/boot/packages
 	fi
 	
 }
@@ -322,7 +325,7 @@ backup_src() {
 
 	if [ "${BACKUP_PACKAGES}" = "yes" -a "${BACKUP_SOURCES}" = "yes" ]; then
 			[ -d $SOURCES_REPOSITORY ] || mkdir -p $SOURCES_REPOSITORY
-			[ -d $ISODIR/sources ] || mkdir -p $ISODIR/sources
+			[ -d $ISODIR/boot/src ] || mkdir -p $ISODIR/boot/src
 			
 			cat $ISODIR/cookorder.list | while read PACKAGE; do
 				WGET_URL=$(grep  ^WGET_URL= ${HG_DIR}/wok/${PACKAGE}/receipt | cut -d "=" -f2 | sed -e 's/"//g' | head -n 1)
@@ -341,12 +344,20 @@ backup_src() {
 					[  -f "$SOURCES_REPOSITORY/$TARBALL" ] && ln -sf $SOURCES_REPOSITORY/$TARBALL $ISODIR/sources/$TARBALL
 				fi
 			done
-			cd $ISODIR/sources
+			cd $ISODIR/boot/src
 			info "Make md5sum file for sources"
 			find * -not -type d | grep -v md5sum | xargs md5sum > md5sum
 			cd $WORKING
 	fi
 	
+}
+
+backup_all()
+{
+	if [ "${BACKUP_ALL}" = "yes" ]; then
+		[ -d $ISODIR/boot/src ] || ln -sf $SOURCES_REPOSITORY $ISODIR/boot/src
+		[ -d $ISODIR/boot/packages ] || ln -sf $PACKAGES_REPOSITORY $ISODIR/boot/packages
+	fi
 }
 
 # _mksquash dirname
@@ -421,6 +432,8 @@ imgcommon () {
 		backup_src
 	fi
 	
+	backup_all
+	
 	info "====> Making bootable image"
 
 	# Sanity checks
@@ -468,14 +481,15 @@ make_iso () {
 	fi
 
 	info "Creating ISO image..."
-	genisoimage -R -o $IMGNAME -b boot/isolinux/isolinux.bin \
+	genisoimage -R -J -f -o $IMGNAME -b boot/isolinux/isolinux.bin \
 	-c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
 	-V "SliTaz" -input-charset iso8859-1 -boot-info-table $ISODIR
 	if [ -x /usr/bin/isohybrid ]; then
 		info "Creating hybrid ISO..."
 		isohybrid "${IMGNAME}"
 	fi
-	md5sum "${IMGNAME}" > $IMGMD5NAME
+	md5sum "$IMGNAME" > $IMGMD5NAME
+	sed -i "s|$PROFILE/||g" $IMGMD5NAME
 }
 
 if [ "$MODULES" != "" ]; then
