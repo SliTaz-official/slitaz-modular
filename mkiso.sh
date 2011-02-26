@@ -40,6 +40,7 @@ BACKUP_ALL="no"
 CLEAN_MODULES_DIR="no"
 CLEAN_INITRAMFS="no"
 PACKAGES_REPOSITORY="$LOCAL_REPOSITORY/packages"
+INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
 SOURCES_REPOSITORY="$LOCAL_REPOSITORY/src"
 HG_LIST="flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-forge slitaz-pizza slitaz-tools tazlito tazpkg tazusb tazwok website wok wok-stable wok-tiny wok-undigest"
 
@@ -274,44 +275,37 @@ backup_pkg() {
 	if [ "${BACKUP_PACKAGES}" = "yes" ]; then
 		[ -d $ISODIR/boot/packages ] && rm -r $ISODIR/boot/packages
 		mkdir -p $ISODIR/boot/packages
+		WOK=${HG_DIR}/wok/home/slitaz/repos/wok
 		info "Making cooking list based installed packages in union"
-		tazwok gen-cooklist $ISODIR/packages-installed.list > $ISODIR/cookorder.list
-		#[ -f $INCOMING_REPOSITORY/wok-wanted.txt ] || tazwok gen-wok-db
-		
-		info "Linking all installed packages to $ISODIR/boot/packages"
-		cat $ISODIR/packages-installed.list | while read PACKAGE; do
-			VERSION=$(grep ^VERSION= ${HG_DIR}/wok/${PACKAGE}/receipt | cut -d "=" -f2 | sed -e 's/"//g')
-			CACHE_PACKAGE=$(find $CACHE_DIR/$(cat /etc/slitaz-release)/packages -type f -name "$PACKAGE-$VERSION.tazpkg")	
-			if [ -f $CACHE_PACKAGE ]; then
-				info "Copying $CACHE_PACKAGE to $ISODIR/boot/packages"
-				ln -sf $CACHE_PACKAGE $ISODIR/boot/packages
-			#elif [ ! -f $CACHE_PACKAGE ]; then
-			#	info "$CACHE_PACKAGE doesn't exist. Downloading it."
-			#	cd $CACHE_DIR/$(cat /etc/slitaz-release)/packgages
-			#	tazpkg get $PACKAGE
-			#	cd $WORKING
-			#	if [ -f $CACHE_PACKAGE ]; then
-			#		ln -sf $CACHE_PACKAGE $ISODIR/packages
-			#	fi
+		# this is to filter out packages build by get- 
+		# packages that don't exist in repo or wok
+		cat $ISODIR/packages-installed.list | while read pkg; do
+			if [ ! -f $WOK/$pkg/receipt ]; then
+				sed -i "s|$pkg||g" $ISODIR/packages-installed.list
 			fi
 		done
+		tazwok gen-cooklist $ISODIR/packages-installed.list > $ISODIR/cookorder.list
+		[ -f $INCOMING_REPOSITORY/wok-wanted.txt ] || tazwok gen-wok-db
 		
-		cat $ISODIR/cookorder.list | while read PACKAGE; do
-			rwanted=$(grep $'\t'$PACKAGE$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
-			echo $rwanted | while read WANTED_PKG; do
-				VERSION=$(grep  ^VERSION= ${HG_DIR}/wok/${WANTED_PKG}/receipt | cut -d "=" -f2 | sed -e 's/"//g')
-				CACHE_PACKAGE=$(find $CACHE_DIR/$(cat /etc/slitaz-release)/packages -type f -name "$WANTED_PKG-$VERSION.tazpkg")
-				if [ -f $CACHE_PACKAGE ]; then
-					info "Copying $CACHE_PACKAGE to $ISODIR/boot/packages"
-					ln -sf $CACHE_PACKAGE $ISODIR/boot/packages
-				#elif [ ! -f $CACHE_PACKAGE ]; then
-				#	info "$CACHE_PACKAGE doesn't exist. Downloading it."
-				#	cd $CACHE_DIR/$(cat /etc/slitaz-release)/packgages &>/dev/null
-				#	tazpkg get $PACKAGE
-				#	cd $WORKING
-				#	if [ -f $CACHE_PACKAGE ]; then
-				#		ln -sf $CACHE_PACKAGE $ISODIR/packages
-				#	fi
+		#CACHE_REPOSITORY="/var/cache/tazpkg/$(cat /etc/slitaz-release)/packages"
+		
+		cat $ISODIR/cookorder.list | grep -v "^#" | while read pkg; do
+			rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
+			pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $PACKAGES_REPOSITORY/packages.txt | \
+				tail -1 | sed 's/ *//')"
+			for wanted in $rwanted; do
+				if [ -f $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg ]; then
+					ln -sf $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $ISODIR/boot/packages/$wanted-$pkg_VERSION.tazpkg
+				fi
+			done
+			for i in $(ls $WOK/$pkg/receipt); do
+				unset SOURCE TARBALL WANTED PACKAGE VERSION pkg_VERSION
+				source $i
+				pkg_VERSION="$(grep -m1 -A1 ^$PACKAGE$ $PACKAGES_REPOSITORY/packages.txt | \
+					tail -1 | sed 's/ *//')"
+				[ "$WGET_URL" ] || continue
+				if [ -f $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
+					ln -sf $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg $ISODIR/boot/packages/$PACKAGE-$pkg_VERSION.tazpkg
 				fi
 			done
 		done
@@ -325,24 +319,28 @@ backup_src() {
 
 	if [ "${BACKUP_PACKAGES}" = "yes" -a "${BACKUP_SOURCES}" = "yes" ]; then
 			[ -d $SOURCES_REPOSITORY ] || mkdir -p $SOURCES_REPOSITORY
-			[ -d $ISODIR/boot/src ] || mkdir -p $ISODIR/boot/src
-			
-			cat $ISODIR/cookorder.list | while read PACKAGE; do
-				WGET_URL=$(grep  ^WGET_URL= ${HG_DIR}/wok/${PACKAGE}/receipt | cut -d "=" -f2 | sed -e 's/"//g' | head -n 1)
-				VERSION=$(grep  ^VERSION= ${HG_DIR}/wok/${PACKAGE}/receipt | cut -d "=" -f2 | sed -e 's/"//g' | head -n 1)
-				TARBALL=$(grep  ^TARBALL= ${HG_DIR}/wok/${PACKAGE}/receipt | cut -d "=" -f2 | sed -e 's/"//g' | head -n 1)
-				
-				if [ ! -f "$SOURCES_REPOSITORY/$TARBALL" ] && \
-					[ ! -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
-					tazwok get-src $PACKAGE --nounpack
-					if [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
-						ln -sf $SOURCES_REPOSITORY/$TARBALL $ISODIR/sources/$TARBALL
-					elif [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
-						ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $ISODIR/sources/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
+			[ -d $ISODIR/boot/src ] && rm -r $ISODIR/boot/src
+			mkdir -p $ISODIR/boot/src
+			WOK=${HG_DIR}/wok/home/slitaz/repos/wok
+			cat $ISODIR/cookorder.list | grep -v "^#"| while read pkg; do
+				#rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
+				for i in $(ls $WOK/$pkg/receipt); do
+					unset SOURCE TARBALL WANTED PACKAGE VERSION 
+					source $i
+					{ [ ! "$TARBALL" ] || [ ! "$WGET_URL" ] ; } && continue
+					if [ ! -f "$SOURCES_REPOSITORY/$TARBALL" ] && \
+						[ ! -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
+						tazwok get-src $PACKAGE --nounpack
+						if [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
+							ln -sf $SOURCES_REPOSITORY/$TARBALL $ISODIR/sources/$TARBALL
+						elif [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
+							ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $ISODIR/boot/src/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
+						fi
+					else
+						[ -f "$SOURCES_REPOSITORY/$TARBALL" ] && ln -sf $SOURCES_REPOSITORY/$TARBALL $ISODIR/boot/src/$TARBALL
+						[ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ] && ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $ISODIR/boot/src/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
 					fi
-				else
-					[  -f "$SOURCES_REPOSITORY/$TARBALL" ] && ln -sf $SOURCES_REPOSITORY/$TARBALL $ISODIR/sources/$TARBALL
-				fi
+				done
 			done
 			cd $ISODIR/boot/src
 			info "Make md5sum file for sources"
