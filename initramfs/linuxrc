@@ -219,26 +219,6 @@ fi
 
 debug_shell
 
-#if [ $(cmdline_parameter copy) ]; then
-#	echolog "Copying initramfs to union. Please wait..."
-#	# copy busybox to union
-#	for i in $(ls -a /); do
-#		case "$i" in
-#		.|..)	;;
-#		memory|union)	;;
-#		mnt)	mkdir -p $UNION/mnt ;;
-#		sys)	mkdir -p $UNION/sys ;;
-#		proc)	mkdir -p $UNION/proc ;;
-#		dev)	;;
-#		*)	if ! cp -af /$i $UNION 2> /dev/null; then
-#				debug_shell
-#			fi ;;
-#		esac
-#	done
-#fi
-
-#debug_shell
-
 # DATA contains path to the base directory of all fs modules which need
 # to be mounted and inserted into live filesystem. Do it now.
 echolog "Loading modules:"
@@ -277,8 +257,8 @@ debug_shell
 echolog "Recreating /etc/fstab and /mnt directories"
 touch $UNION/etc/fstab
 rmdir $UNION/mnt/* 2>/dev/null
-fstab_update $UNION
-#fstab_clean $UNION
+#fstab_update $UNION
+fstab_clean $UNION
 
 # everything is ready now, so we may unload unused kernel modules
 # and do some cleanup, unmount few things which are no longer needed.
@@ -298,6 +278,10 @@ chmod 1777 $UNION/tmp
 # Boot will contain whatever was in ./boot directory in the bootable media
 # Error output goes to null, as nothing is mounted with copy2ram
 #mount -n -o rbind $(dirname $DATA)/boot $UNION/boot 2>/dev/null
+if [ -d $(dirname $DATA)/boot/packages ]; then
+	echolog "Setup repo for mirror iso..."
+	mount -n -o remount,add:1:/$(dirname $DATA)=ro aufs $UNION
+fi
 
 # Union contains all the files and directories unioned from all modules.
 # Change root directory to it, and move initrd's root to /mnt/live/initramdisk

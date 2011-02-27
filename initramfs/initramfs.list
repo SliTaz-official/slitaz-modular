@@ -10,3 +10,4 @@ linux-squashfs
 aufs
 module-init-tools
 util-linux-ng-blkid
+udev

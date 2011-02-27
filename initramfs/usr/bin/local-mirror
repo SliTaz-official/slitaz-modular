@@ -1,0 +1,140 @@
+#!/bin/sh
+
+. /etc/local-mirror.conf
+
+[ -d $REPOS_DIR ] || continue
+[ -d $WWW_DIR ] || mkdir -p $WWW_DIR
+ln -sf /home/slitaz/www /var/www/vhosts
+for b in $WWW; do
+    [ -d $WWW_DIR/$b ] && continue
+    if [ "$b" = "website" ]; then
+		[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $WWW_DIR
+	fi
+	if [ "$b" = "people" ]; then
+		[ -d $REPOS_DIR/slitaz-forge/people ] && ln -sf $REPOS_DIR/slitaz-forge/people $WWW_DIR
+	fi
+	if [ "$b" = "doc" ]; then
+		[ -d $REPOS_DIR/slitaz-forge/doc ] && ln -sf $REPOS_DIR/slitaz-forge/doc $WWW_DIR
+		[ -d /var/www/dokuwiki ] && cp -a /var/www/dokuwiki/* $REPOS_DIR/slitaz-forge/doc
+		chown root.root -R $REPOS_DIR/slitaz-forge/doc
+		chmod 777 -R $REPOS_DIR/slitaz-forge/doc
+	fi
+	if [ "$b" = "bb" ]; then
+		[ -d /usr/share/slitaz/web-bb ] && cp -a /usr/share/slitaz/web-bb $WWW_DIR/bb
+		[ -d /usr/share/slitaz/web ] && cp -a /usr/share/slitaz/web $WWW_DIR/bb/web
+		[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $WWW_DIR/bb/pics
+	fi
+	if [ "$b" = "pkgs" ]; then
+		[ -d $wWW_DIR/pkgs ] || mkdir -p $WWW_DIR/pkgs
+		[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style/* $WWW_DIR/pkgs
+		[ -f /var/lib/tazpkg-web/search.cgi ] && cp -a /var/lib/tazpkg-web/search.cgi $WWW_DIR/pkgs
+		[ -d $COOKING ] || mkdir -p $COOKING
+		[ -d $STABLE ] || mkdir -p $STABLE
+		[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
+		[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
+		[ -d /boot/packages ] && ln -sf /boot/packages /home/slitaz/$(cat /etc/slitaz-release)/packages
+		[ -d /boot/src ] && ln -sf /boot/src /home/slitaz/$(cat /etc/slitaz-release)/src
+	fi
+	if [ "$b" = "mirror" ]; then
+		[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info ] && ln -sf $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info $WWW_DIR/mirror-info
+		[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz ] && ln -sf $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz $WWW_DIR/slitaz
+		[ -d /boot/packages ] && ln -sf /boot/packages $WWW_DIR/slitaz/mirror/packages
+		[ -d /boot/src ] && ln -sf /boot/src $WWW_DIR/slitaz/mirror/src
+	fi
+	if [ "$b" = "tank" ]; then
+		[ -d $REPOS_DIR/slitaz-forge/$b/web ] && ln -sf $REPOS_DIR/slitaz-forge/$b/web $WWW_DIR/$b
+	fi
+	if [ "$b" = "hg" ]; then
+		[ -d $WWW_DIR/hg ] || mkdir -p $WWW_DIR/hg
+		[ -f /usr/share/examples/mercurial/hgwebdir.cgi ] && ln -sf /usr/share/examples/mercurial/hgwebdir.cgi $WWW_DIR/hg
+		[ -f $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config ] && ln -sf $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config /etc/mercurial/hgweb.config
+	fi
+done
+
+for repo in $REPOS; do
+	[ -d $REPOS_DIR/$repo ] || continue
+	if [ "$repo" = "flavors" ]; then
+		[ -d $REPOS_DIR/$repo ] && ln -sf $REPOS_DIR/$repo $COOKING/$repo
+	fi
+	if [ "$repo" = "flavors-stable" ]; then
+		[ -d $REPOS_DIR/$repo ] && ln -sf $REPOS_DIR/$repo $STABLE/$repo
+	fi
+	if [ ! -f $REPOS_DIR/$repo/.hg/hgrc-web ]; then
+		[ -d $REPOS_DIR/$repo/.hg ] && touch $REPOS_DIR/$repo/.hg/hgrc-web
+		[ -d $REPOS_DIR/$repo/.hg ] && echo "[web]" >> $REPOS_DIR/$repo/.hg/hgrc-web
+		[ -d $REPOS_DIR/$repo/.hg ] && echo "style = slitaz" >> $REPOS_DIR/$repo/.hg/hgrc-web
+		[ -d $REPOS_DIR/$repo/.hg ] && echo "push_ssl = false" >> $REPOS_DIR/$repo/.hg/hgrc-web
+		[ -d $REPOS_DIR/$repo/.hg ] && echo "allow_push = *" >> $REPOS_DIR/$repo/.hg/hgrc-web
+		[ ! -f $REPOS_DIR/$repo/.hg/hgrc-pull ] && mv $REPOS_DIR/$repo/.hg/hgrc $REPOS_DIR/$repo/.hg/hgrc-pull
+		[ ! -f $REPOS_DIR/$repo/.hg/hgrc ] && cp -a $REPOS_DIR/$repo/.hg/hgrc-web $REPOS_DIR/$repo/.hg/hgrc
+	fi
+	
+	if [ ! $(grep -l 'name = ' $REPOS_DIR/$repo/.hg/hgrc ) ]; then
+		echo "name = $repo" >> $REPOS_DIR/$repo/.hg/hgrc
+	fi
+	
+	if [ ! $(grep -l 'contact = ' $REPOS_DIR/$repo/.hg/hgrc ) ]; then
+		[ "$repo" = "flavors" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "flavors-stable" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-base-files" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-boot-scripts" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-configs" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-dev-tools" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-doc" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-forge" ] && echo "contact = Eric Joseph-Alexandre" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-pizza" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-tools" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "tazlito" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "tazpkg" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "tazusb" ] && echo "contact = Eric Joseph-Alexandre" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "tazwok" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "website" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "wok" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "wok-stable" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "wok-tiny" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "wok-undigest" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+	fi
+	
+	if [ ! $(grep -l 'description = ' $REPOS_DIR/$repo/.hg/hgrc) ]; then
+		[ "$repo" = "flavors" ] && echo "description = SliTaz Cooking flavors" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "flavors-stable" ] && echo "description = SliTaz Stable flavors" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-base-files" ] && echo "description = SliTaz base files" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-boot-scripts" ] && echo "description = SliTaz boot scripts" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-configs" ] && echo "description = SliTaz configuration files" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-dev-tools" ] && echo "description = SliTaz Developers Tools" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-doc" ] && echo "description = SliTaz system doc" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-forge" ] && echo "description = SliTaz Forge Config" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-pizza" ] && echo "description = SliTaz Online flavor builder" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "slitaz-tools" ] && echo "description = SliTaz Tools and Tinyutils" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "tazlito" ] && echo "description = SliTaz Live Tool" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "tazpkg" ] && echo "description = SliTaz Packages manager" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "tazusb" ] && echo "description = SliTaz LiveUSB utility" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "tazwok" ] && echo "description = Slitaz Packages builder" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "website" ] && echo "description = SliTaz Website" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "wok" ] && echo "description = SliTaz Cooking wok" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "wok-stable" ] && echo "description = SliTaz Stable wok" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "wok-tiny" ] && echo "description = Tiny SliTaz wok" >> $REPOS_DIR/$repo/.hg/hgrc
+		[ "$repo" = "wok-undigest" ] && echo "description = SliTaz Undigest wok" >> $REPOS_DIR/$repo/.hg/hgrc
+	fi
+done
+
+for hostname in $ADDRESS; do 
+	END_IP=$(($END_IP+1))
+	for i in $END_IP; do
+		if [ ! $(grep -l "${BASE_IP}.$i $hostname" /etc/hosts) ]; then
+			echo "${BASE_IP}.$i $hostname" >> /etc/hosts
+		fi
+	done 
+done
+
+[ -f $VHOST_FILE ] && ln -sf $VHOST_FILE /etc/lighttpd/vhosts.conf
+chown -R www.www /home/slitaz/www
+
+if [ "$1" = "on" ]; then
+	[ -f /etc/init.d/lighttpd ] && /etc/init.d/lighttpd start
+fi
+
+if [ "$1" = "off" ]; then
+	[ -f /etc/init.d/lighttpd ] && /etc/init.d/lighttpd stop
+	echo "127.0.0.1 localhost $(cat /etc/hostname)" > /etc/hosts
+fi
