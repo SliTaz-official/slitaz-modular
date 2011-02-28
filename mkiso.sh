@@ -42,7 +42,7 @@ CLEAN_INITRAMFS="no"
 PACKAGES_REPOSITORY="$LOCAL_REPOSITORY/packages"
 INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
 SOURCES_REPOSITORY="$LOCAL_REPOSITORY/src"
-HG_LIST="flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-forge slitaz-pizza slitaz-tools tazlito tazpkg tazusb tazwok website wok wok-stable wok-tiny wok-undigest"
+HG_LIST="flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools tazlito tazpkg tazusb tazwok website wok wok-stable wok-tiny wok-undigest"
 
 error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
 warn ()  { echo -e "\033[1;33;40m*** \033[1;37;40m$@\033[1;0m"; }
@@ -425,6 +425,10 @@ imgcommon () {
 			fi
 		done
 	fi
+	
+	[ -d $ISODIR/boot/src ] && rm -r $ISODIR/boot/src
+	[ -d $ISODIR/boot/packages ] && rm -r $ISODIR/boot/packages
+	
 	if [ -d ${HG_DIR}/wok ]; then
 		backup_pkg
 		backup_src
