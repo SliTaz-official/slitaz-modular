@@ -23,6 +23,7 @@ IMAGES=$MEMORY/images
 INITRAMDISK=$MOUNTDIR/live
 LOOPMOUNT=$MOUNTDIR/tmp
 FINDISOMNT=$MOUNTDIR/findiso
+#MIRROR
 
 # this will be replaced by build script, so never change the following line!
 LIVECDNAME="slitaz"

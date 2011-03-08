@@ -18,7 +18,9 @@ UNGZIP=n
 EXT="xz"
 COMPRESSION="xz -Xbcj x86"
 MKOPTION="-b 256k"
+BASE_MODULES=""
 MODULES=""
+UNION_MODULES=""
 WORKING="$PROFILE/working"
 INITRAMFS="$WORKING/initramfs"
 UNION="$WORKING/union"
@@ -36,6 +38,9 @@ COPY_HG="no"
 UPDATE_HG="no"
 BACKUP_SOURCES="no"
 BACKUP_PACKAGES="no"
+PKGISO_DIR="$ISODIR/mirror/packages"
+SRCISO_DIR="$ISODIR/mirror/src"
+MIRROR_DIR="mirror"
 BACKUP_ALL="no"
 CLEAN_MODULES_DIR="no"
 CLEAN_INITRAMFS="no"
@@ -140,13 +145,23 @@ initramfs () {
 	fi
 
 	#if [ ! -f $ISODIR/boot/bzImage ]; then
-		cp -f $INITRAMFS/boot/vmlinuz* $ISODIR/boot/bzImage
+		cp -a $INITRAMFS/boot/vmlinuz* $ISODIR/boot/bzImage
 		rm -f $INITRAMFS/boot/vmlinuz*
+		if [ -f $INITRAMFS/boot/gpxe ]; then
+			cp -a $INITRAMFS/boot/gpxe $ISODIR/boot/gpxe
+		fi
 	#fi
 
 	if [ -d $BASEDIR/initramfs ]; then
 		cp -af $BASEDIR/initramfs/* $INITRAMFS
 	fi
+	
+	if [ -f $INITRAMFS/etc/local-mirror.conf ]; then
+		sed -i "s|^#PKGDIR|PKGDIR=$PKGISO_DIR|g" $INITRAMFS/etc/local-mirror.conf
+		sed -i "s|^#SRCDIR|SRCDIR=$SRCISO_DIR|g" $INITRAMFS/etc/local-mirror.conf
+	fi
+	
+	sed -i "s|^#MIRROR|MIRROR="$MIRROR_DIR"|g" $INITRAMFS/liblinuxlive
 }
 
 copy_hg() {
@@ -219,6 +234,7 @@ union () {
 	mkdir -p $ISODIR/${CDNAME}/rootcopy
 	mkdir -p $ISODIR/${CDNAME}/tmp
 	mkdir -p $LASTBR
+	
 	touch $SGNFILE
 
 	modprobe aufs
@@ -231,6 +247,12 @@ union () {
 	# This will be copyed to /mnt/memory/changes on boot
 	initramfs
 
+	if [ $BASE_MODULES ]; then
+		UNION_MODULES="$BASE_MODULES $MODULES"
+	else
+		UNION_MODULES="$MODULES"
+	fi
+	
 	mount -t aufs -o br:${LASTBR}=rw aufs ${UNION}
 	if [ $? -ne 0 ]; then 
 		error "Error mounting $union."
@@ -238,7 +260,7 @@ union () {
 	fi
 	
 	info "====> Installing packages to '$UNION'"
-	for mod in $MODULES; do
+	for mod in $UNION_MODULES; do
 
 		if [ "$CLEAN_MODULES_DIR" = "yes" ]; then
 			if [ -d $MODULES_DIR/$mod ]; then
@@ -254,6 +276,7 @@ union () {
 		info "Adding $LASTBR as lower branch of union."
 		mount -t aufs -o remount,mod:${LASTBR}=rr+wh aufs $UNION
 		LASTBR="$MODULES_DIR/${mod}"
+		
 
 		slitaz_union
 	done
@@ -273,8 +296,8 @@ union () {
 
 backup_pkg() {
 	if [ "${BACKUP_PACKAGES}" = "yes" ]; then
-		[ -d $ISODIR/boot/packages ] && rm -r $ISODIR/boot/packages
-		mkdir -p $ISODIR/boot/packages
+		[ -d $PKGISO_DIR ] && rm -r $PKGISO_DIR
+		mkdir -p $PKGISO_DIR
 		WOK=${HG_DIR}/wok/home/slitaz/repos/wok
 		info "Making cooking list based installed packages in union"
 		# this is to filter out packages build by get- 
@@ -295,7 +318,7 @@ backup_pkg() {
 				tail -1 | sed 's/ *//')"
 			for wanted in $rwanted; do
 				if [ -f $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg ]; then
-					ln -sf $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $ISODIR/boot/packages/$wanted-$pkg_VERSION.tazpkg
+					ln -sf $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$pkg_VERSION.tazpkg
 				fi
 			done
 			for i in $(ls $WOK/$pkg/receipt); do
@@ -305,12 +328,12 @@ backup_pkg() {
 					tail -1 | sed 's/ *//')"
 				[ "$WGET_URL" ] || continue
 				if [ -f $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
-					ln -sf $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg $ISODIR/boot/packages/$PACKAGE-$pkg_VERSION.tazpkg
+					ln -sf $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg
 				fi
 			done
 		done
 		
-		[ -d $ISODIR/boot/packages ] && tazwok gen-list $ISODIR/boot/packages
+		[ -d $PKGISO_DIR ] && tazwok gen-list $PKGISO_DIR
 	fi
 	
 }
@@ -319,8 +342,8 @@ backup_src() {
 
 	if [ "${BACKUP_PACKAGES}" = "yes" -a "${BACKUP_SOURCES}" = "yes" ]; then
 			[ -d $SOURCES_REPOSITORY ] || mkdir -p $SOURCES_REPOSITORY
-			[ -d $ISODIR/boot/src ] && rm -r $ISODIR/boot/src
-			mkdir -p $ISODIR/boot/src
+			[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
+			mkdir -p $SRCISO_DIR
 			WOK=${HG_DIR}/wok/home/slitaz/repos/wok
 			cat $ISODIR/cookorder.list | grep -v "^#"| while read pkg; do
 				#rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
@@ -332,17 +355,17 @@ backup_src() {
 						[ ! -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
 						tazwok get-src $PACKAGE --nounpack
 						if [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
-							ln -sf $SOURCES_REPOSITORY/$TARBALL $ISODIR/sources/$TARBALL
+							ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
 						elif [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
-							ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $ISODIR/boot/src/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
+							ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
 						fi
 					else
-						[ -f "$SOURCES_REPOSITORY/$TARBALL" ] && ln -sf $SOURCES_REPOSITORY/$TARBALL $ISODIR/boot/src/$TARBALL
-						[ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ] && ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $ISODIR/boot/src/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
+						[ -f "$SOURCES_REPOSITORY/$TARBALL" ] && ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
+						[ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ] && ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
 					fi
 				done
 			done
-			cd $ISODIR/boot/src
+			cd $SRCISO_DIR
 			info "Make md5sum file for sources"
 			find * -not -type d | grep -v md5sum | xargs md5sum > md5sum
 			cd $WORKING
@@ -353,8 +376,8 @@ backup_src() {
 backup_all()
 {
 	if [ "${BACKUP_ALL}" = "yes" ]; then
-		[ -d $ISODIR/boot/src ] || ln -sf $SOURCES_REPOSITORY $ISODIR/boot/src
-		[ -d $ISODIR/boot/packages ] || ln -sf $PACKAGES_REPOSITORY $ISODIR/boot/packages
+		[ -d $SRCISO_DIR ] || ln -sf $SOURCES_REPOSITORY $SRCISO_DIR
+		[ -d $PKGISO_DIR ] || ln -sf $PACKAGES_REPOSITORY $PKGISO_DIR
 	fi
 }
 
@@ -426,8 +449,8 @@ imgcommon () {
 		done
 	fi
 	
-	[ -d $ISODIR/boot/src ] && rm -r $ISODIR/boot/src
-	[ -d $ISODIR/boot/packages ] && rm -r $ISODIR/boot/packages
+	[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
+	[ -d $PKGISO_DIR ] && rm -r $PKGISO_DIR
 	
 	if [ -d ${HG_DIR}/wok ]; then
 		backup_pkg

@@ -21,78 +21,93 @@ usage() {
 
 www() {
 	b=$1
-	if [ "$b" = "website" ]; then
-		[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $WWW_DIR
-	fi
-	if [ "$b" = "people" ]; then
-		[ -d $REPOS_DIR/slitaz-forge/people ] && ln -s $REPOS_DIR/slitaz-forge/people $WWW_DIR/people
-	fi
-	if [ "$b" = "doc" ]; then
-		[ -d $REPOS_DIR/slitaz-forge/doc ] && cp -a $REPOS_DIR/slitaz-forge/doc $WWW_DIR/doc
-		[ -d /var/www/dokuwiki ] && cp -a /var/www/dokuwiki/* $WWW_DIR/doc
-		VAR="index media pages"
-		for i in $VAR; do
-			[ -d $REPOS_DIR/slitaz-doc-wiki-data ] && cp -a $REPOS_DIR/slitaz-doc-wiki-data/$i $WWW_DIR/doc/data
-		done
-		[ -d $REPOS_DIR/slitaz-doc-wiki-data/plugins ] && cp -a $REPOS_DIR/slitaz-doc-wiki-data/plugins  $WWW_DIR/doc/lib
-		chown root.root -R $WWW_DIR/doc
-		chmod 777 -R $WWW_DIR/doc
-	fi
-	if [ "$b" = "bb" ]; then
-		[ -d /usr/share/slitaz/web-bb ] && cp -a /usr/share/slitaz/web-bb $WWW_DIR/bb
-		[ -d /usr/share/slitaz/web ] && cp -a /usr/share/slitaz/web $WWW_DIR/bb/web
-		[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $WWW_DIR/bb/pics
-	fi
-	if [ "$b" = "pkgs" ]; then
-		[ -d $wWW_DIR/pkgs ] || mkdir -p $WWW_DIR/pkgs
-		[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style/* $WWW_DIR/pkgs
-		[ -f /var/lib/tazpkg-web/search.cgi ] && cp -a /var/lib/tazpkg-web/search.cgi $WWW_DIR/pkgs
-		[ -d $COOKING ] || mkdir -p $COOKING
-		[ -d $STABLE ] || mkdir -p $STABLE
-		[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
-		[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
-		[ -d /boot/packages ] && ln -sf /boot/packages /home/slitaz/$(cat /etc/slitaz-release)/packages
-		[ -d /boot/src ] && ln -sf /boot/src /home/slitaz/$(cat /etc/slitaz-release)/src
-	fi
-	if [ "$b" = "mirror" ]; then
-		[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info $WWW_DIR
-		[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz $WWW_DIR
-		[ -d $WWW_DIR/slitaz/mirror/packages ] || mkdir -p $WWW_DIR/slitaz/mirror/packages
-		[ -d /boot/packages ] && ln -sf /boot/packages $WWW_DIR/slitaz/mirror/packages/$(cat /etc/slitaz-release)
-		if [ -d /boot/src ]; then
-			for i in $(ls /boot/src); do
-				[ -d $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1} ] || mkdir -p $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}
-				ln -sf /boot/src/$i $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i
+	case "$b" in
+		website)
+			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $WWW_DIR
+		;;
+		people)
+			[ -d $REPOS_DIR/slitaz-forge/people ] && ln -s $REPOS_DIR/slitaz-forge/people $WWW_DIR/people
+		;;
+		doc)
+			[ -d $REPOS_DIR/slitaz-forge/doc ] && cp -a $REPOS_DIR/slitaz-forge/doc $WWW_DIR/doc
+			[ -d /var/www/dokuwiki ] && cp -a /var/www/dokuwiki/* $WWW_DIR/doc
+			VAR="index media pages"
+			for i in $VAR; do
+				[ -d $REPOS_DIR/slitaz-doc-wiki-data ] && cp -a $REPOS_DIR/slitaz-doc-wiki-data/$i $WWW_DIR/doc/data
 			done
-		fi
-	fi
-	if [ "$b" = "tank" ]; then
-		[ -d $REPOS_DIR/slitaz-forge/$b/web ] && ln -sf $REPOS_DIR/slitaz-forge/$b/web $WWW_DIR/$b
-		[ -f /usr/share/awstats/extras/update ] && ln -sf /usr/share/awstats/extras/update /usr/sbin/awsupdate_all
-		[ -d $REPOS_DIR/slitaz-forge/$b/root/etc/awstats ] && cp -a $REPOS_DIR/slitaz-forge/$b/root/etc/awstats/* /etc/awstats
-	fi
-	if [ "$b" = "hg" ]; then
-		[ -d $WWW_DIR/hg ] || mkdir -p $WWW_DIR/hg
-		[ -f /usr/share/examples/mercurial/hgwebdir.cgi ] && ln -sf /usr/share/examples/mercurial/hgwebdir.cgi $WWW_DIR/hg
-		[ -f $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config ] && ln -sf $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config /etc/mercurial/hgweb.config
-	fi
+			[ -d $REPOS_DIR/slitaz-doc-wiki-data/plugins ] && cp -a $REPOS_DIR/slitaz-doc-wiki-data/plugins  $WWW_DIR/doc/lib
+			chown root.root -R $WWW_DIR/doc
+			chmod 777 -R $WWW_DIR/doc
+		;;
+		pizza)
+			[ -d $REPOS_DIR/slitaz-pizza/php ] && ln -sf $REPOS_DIR/slitaz-pizza/php $WWW_DIR/pizza
+		;;
+		bb)
+			[ -d /usr/share/slitaz/web-bb ] && cp -a /usr/share/slitaz/web-bb $WWW_DIR/bb
+			[ -d /usr/share/slitaz/web ] && cp -a /usr/share/slitaz/web $WWW_DIR/bb/web
+			[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $WWW_DIR/bb/pics
+			echo -e "$WWW_DIR/bb" | tazwok webserver on
+		;;
+		pkgs)
+			[ -d $wWW_DIR/pkgs ] || mkdir -p $WWW_DIR/pkgs
+		
+			#[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style/* $WWW_DIR/pkgs
+			#[ -f /var/lib/tazpkg-web/search.cgi ] && cp -a /var/lib/tazpkg-web/search.cgi $WWW_DIR/pkgs
+			[ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style/* $WWW_DIR/pkgs
+			[ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi $WWW_DIR/pkgs
+			[ -d $COOKING ] || mkdir -p $COOKING
+			[ -d $STABLE ] || mkdir -p $STABLE
+			[ -d $REPOS_DIR/flavors ] && ln -sf $REPOS_DIR/flavors $COOKING/flavors
+			[ -d $REPOS_DIR/flavors-stable ] && ln -sf $REPOS_DIR/flavors-stable $STABLE/flavors
+			[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
+			[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
+			[ -d $PKGDIR ] && ln -sf $PKGDIR /home/slitaz/$(cat /etc/slitaz-release)/packages
+			[ -d $SRCDIR ] && ln -sf $SRCDIR /home/slitaz/$(cat /etc/slitaz-release)/src
+		;;
+		mirror)
+			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info $WWW_DIR
+			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz $WWW_DIR
+			[ -d $WWW_DIR/slitaz/mirror/packages ] || mkdir -p $WWW_DIR/slitaz/mirror/packages
+			[ -d $PKGDIR ] && ln -sf $PKGDIR $WWW_DIR/slitaz/mirror/packages/$(cat /etc/slitaz-release)
+			if [ -d $SRCDIR ]; then
+				for i in $(ls $SRCDIR); do
+					[ -d $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1} ] || mkdir -p $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}
+					ln -sf $SRCDIR/$i $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i
+				done
+			fi
+		;;
+		boot)
+			[ -d $REPOS_DIR/slitaz-forge/$b/web ] && cp -a $REPOS_DIR/slitaz-forge/$b/web $WWW_DIR/$b
+			[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $WWW_DIR/$b/pics
+		;;
+		tank)
+			[ -d $REPOS_DIR/slitaz-forge/$b/web ] && ln -sf $REPOS_DIR/slitaz-forge/$b/web $WWW_DIR/$b
+			[ -f /usr/share/awstats/extras/update ] && ln -sf /usr/share/awstats/extras/update /usr/sbin/awsupdate_all
+			[ -d $REPOS_DIR/slitaz-forge/$b/files/etc/awstats ] && cp -a $REPOS_DIR/slitaz-forge/$b/files/etc/awstats/* /etc/awstats
+			for i in $ADDRESS; do
+				if [ -f /etc/awstats/awstats.$i.conf ]; then
+					dirlog=$(grep ^DirData= /etc/awstats/awstats.$i.conf | cut -d "=" -f2 | sed -e 's/"//g')
+					mkdir -p $dirlog
+				fi
+			done
+		;;
+		hg)
+			[ -d $WWW_DIR/hg ] || mkdir -p $WWW_DIR/hg
+			[ -f /usr/share/examples/mercurial/hgwebdir.cgi ] && cp -a /usr/share/examples/mercurial/hgwebdir.cgi $WWW_DIR/hg
+			[ -f $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config ] && cp -a $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config /etc/mercurial/hgweb.config
+			#[ -f /etc/mercurial/hgweb.conf ] && sed -i 's|style = slitaz|style = gitweb|g' /etc/mercurial/hgweb.config
+		;;
+	esac
 }
 
 repos() {
 	for repo in $REPOS; do
 		[ -d $REPOS_DIR/$repo ] || continue
-		if [ "$repo" = "flavors" ]; then
-			[ -d $COOKING ] || mkdir -p $COOKING
-			[ -d $REPOS_DIR/$repo ] && ln -sf $REPOS_DIR/$repo $COOKING/$repo
-		fi
-		if [ "$repo" = "flavors-stable" ]; then
-			[ -d $STABLE ] || mkdir -p $STABLE
-			[ -d $REPOS_DIR/$repo ] && ln -sf $REPOS_DIR/$repo $STABLE/$repo
-		fi
 		if [ ! -f $REPOS_DIR/$repo/.hg/hgrc-web ]; then
 			[ -d $REPOS_DIR/$repo/.hg ] && touch $REPOS_DIR/$repo/.hg/hgrc-web
 			[ -d $REPOS_DIR/$repo/.hg ] && echo "[web]" >> $REPOS_DIR/$repo/.hg/hgrc-web
 			[ -d $REPOS_DIR/$repo/.hg ] && echo "style = slitaz" >> $REPOS_DIR/$repo/.hg/hgrc-web
+			[ -d $REPOS_DIR/$repo/.hg ] && echo "staticurl = http://hg.slitaz.org/static/" >> $REPOS_DIR/$repo/.hg/hgrc-web
 			[ -d $REPOS_DIR/$repo/.hg ] && echo "push_ssl = false" >> $REPOS_DIR/$repo/.hg/hgrc-web
 			[ -d $REPOS_DIR/$repo/.hg ] && echo "allow_push = *" >> $REPOS_DIR/$repo/.hg/hgrc-web
 			[ ! -f $REPOS_DIR/$repo/.hg/hgrc-pull ] && mv $REPOS_DIR/$repo/.hg/hgrc $REPOS_DIR/$repo/.hg/hgrc-pull
