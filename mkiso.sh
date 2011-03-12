@@ -157,11 +157,11 @@ initramfs () {
 	fi
 	
 	if [ -f $INITRAMFS/etc/local-mirror.conf ]; then
-		sed -i "s|^#PKGDIR|PKGDIR=$PKGISO_DIR|g" $INITRAMFS/etc/local-mirror.conf
-		sed -i "s|^#SRCDIR|SRCDIR=$SRCISO_DIR|g" $INITRAMFS/etc/local-mirror.conf
+		sed -i "s|^#PKGDIR|PKGDIR=/packages|g" $INITRAMFS/etc/local-mirror.conf
+		sed -i "s|^#SRCDIR|SRCDIR=/src|g" $INITRAMFS/etc/local-mirror.conf
 	fi
 	
-	sed -i "s|^#MIRROR|MIRROR="$MIRROR_DIR"|g" $INITRAMFS/liblinuxlive
+	sed -i "s|^#MIRROR|MIRROR=$MIRROR_DIR|g" $INITRAMFS/liblinuxlive
 }
 
 copy_hg() {

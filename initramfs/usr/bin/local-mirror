@@ -11,9 +11,21 @@ COMMAND="$1"
 
 usage() {
 	echo "$0 $VERSION"
-	echo "$0 [on|off]"
+	echo "$0 [on|off|tank-only|mirror-only]"
 	exit 1 
 }
+
+if [ "$COMMAND" = "tank-only" ]; then
+	WWW="${WWW/mirror/}"
+	ADDRESS="${ADDRESS/mirror.slitaz.org/}"
+	VHOST_FILE="$VHOST_TANK_FILE"
+fi
+
+if [ "$COMMAND" = "mirror-only" ]; then
+	WWW="${WWW/tank/}"
+	ADDRESS="mirror.slitaz.org"
+	VHOST_FILE="$VHOST_MIRROR_FILE"
+fi
 
 [ -d $REPOS_DIR ] || continue
 [ -d $WWW_DIR ] || mkdir -p $WWW_DIR
@@ -72,7 +84,7 @@ www() {
 			if [ -d $SRCDIR ]; then
 				for i in $(ls $SRCDIR); do
 					[ -d $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1} ] || mkdir -p $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}
-					ln -sf $SRCDIR/$i $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i
+					[ -f $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i ] || ln -s $SRCDIR/$i $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i
 				done
 			fi
 		;;
@@ -103,15 +115,24 @@ www() {
 repos() {
 	for repo in $REPOS; do
 		[ -d $REPOS_DIR/$repo ] || continue
+		if [ -d $REPOS_DIR/$repo/.hg ]; then
+			mkdir -p $REPOS_WEB_DIR/$repo
+			[ -d $REPOS_WEB_DIR/$repo/.hg ] || ln -s $REPOS_DIR/$repo/.hg $REPOS_WEB_DIR/$repo/.hg
+			if [ ! $(grep -l "$REPOS_WEB_DIR" /etc/mercurial/hgweb.config) ]; then
+				[ -f /etc/mercurial/hgweb.config ] && sed -i "s|$REPOS_DIR|$REPOS_WEB_DIR|g" /etc/mercurial/hgweb.config
+			fi
+		fi
 		if [ ! -f $REPOS_DIR/$repo/.hg/hgrc-web ]; then
-			[ -d $REPOS_DIR/$repo/.hg ] && touch $REPOS_DIR/$repo/.hg/hgrc-web
-			[ -d $REPOS_DIR/$repo/.hg ] && echo "[web]" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			[ -d $REPOS_DIR/$repo/.hg ] && echo "style = slitaz" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			[ -d $REPOS_DIR/$repo/.hg ] && echo "staticurl = http://hg.slitaz.org/static/" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			[ -d $REPOS_DIR/$repo/.hg ] && echo "push_ssl = false" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			[ -d $REPOS_DIR/$repo/.hg ] && echo "allow_push = *" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			[ ! -f $REPOS_DIR/$repo/.hg/hgrc-pull ] && mv $REPOS_DIR/$repo/.hg/hgrc $REPOS_DIR/$repo/.hg/hgrc-pull
-			[ ! -f $REPOS_DIR/$repo/.hg/hgrc ] && cp -a $REPOS_DIR/$repo/.hg/hgrc-web $REPOS_DIR/$repo/.hg/hgrc
+			touch $REPOS_DIR/$repo/.hg/hgrc-web
+			echo "[paths]" >> $REPOS_DIR/$repo/.hg/hgrc-web
+			echo "path = http://hg.slitaz.org/$repo/" >> $REPOS_DIR/$repo/.hg/hgrc-web
+			echo "[web]" >> $REPOS_DIR/$repo/.hg/hgrc-web
+			#[ -d $REPOS_DIR/$repo/.hg ] && echo "style = slitaz" >> $REPOS_DIR/$repo/.hg/hgrc-web
+			echo "staticurl = http://hg.slitaz.org/static/" >> $REPOS_DIR/$repo/.hg/hgrc-web
+			echo "push_ssl = false" >> $REPOS_DIR/$repo/.hg/hgrc-web
+			echo "allow_push = *" >> $REPOS_DIR/$repo/.hg/hgrc-web
+			#[ ! -f $REPOS_DIR/$repo/.hg/hgrc-pull ] && mv $REPOS_DIR/$repo/.hg/hgrc $REPOS_DIR/$repo/.hg/hgrc-pull
+			cp -a $REPOS_DIR/$repo/.hg/hgrc-web $REPOS_DIR/$repo/.hg/hgrc
 		fi
 	
 		if [ ! $(grep -l 'name = ' $REPOS_DIR/$repo/.hg/hgrc ) ]; then
@@ -169,23 +190,31 @@ repos() {
 }
 
 case "$COMMAND" in 
-	on)
+	on|tank-only|mirror-only)
+		[ -d $WWW_DIR/mirror-info ] && WWW="${WWW/mirror /}"
 		for c in $WWW; do
 			if [ ! -d $WWW_DIR/$c ]; then
 				www $c
+				[ "$c" = "hg" ] && repos
 			fi
-			[ "$c" = "hg" ] && repos
 		done
+		echo "127.0.0.1 localhost $(cat /etc/hostname)" > /etc/hosts
 		for hostname in $ADDRESS; do 
 			END_IP=$(($END_IP+1))
 			for i in $END_IP; do
-				if [ ! $(grep -l "${BASE_IP}.$i $hostname" /etc/hosts) ]; then
+				#if [ ! $(grep -l "${BASE_IP}.$i $hostname" /etc/hosts) ]; then
 					echo "${BASE_IP}.$i $hostname" >> /etc/hosts
-				fi
+				#fi
 			done 
 		done
-
-		[ -f $VHOST_FILE ] && ln -sf $VHOST_FILE /etc/lighttpd/vhosts.conf
+		if [ "$COMMAND" = "tank-only" ]; then
+			[ -f $VHOST_TANK_FILE ] && ln -sf $VHOST_TANK_FILE /etc/lighttpd/vhosts.conf
+		elif [ "$COMMAND" = "mirror-only" ]; then
+			[ -f $VHOST_MIRROR_FILE ] && ln -sf $VHOST_MIRROR_FILE /etc/lighttpd/vhosts.conf
+			
+		else
+			[ -f $VHOST_FILE ] && ln -sf $VHOST_FILE /etc/lighttpd/vhosts.conf
+		fi
 		chown -R www.www /home/slitaz/www
 		[ -f /etc/init.d/lighttpd ] && /etc/init.d/lighttpd start
 		;;
