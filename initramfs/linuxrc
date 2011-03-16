@@ -278,6 +278,16 @@ chmod 1777 $UNION/tmp
 # Boot will contain whatever was in ./boot directory in the bootable media
 # Error output goes to null, as nothing is mounted with copy2ram
 #mount -n -o rbind $(dirname $DATA)/boot $UNION/boot 2>/dev/null
+MIRRORCMD=$(cmdline_value mirror)
+if [ "$MIRRORCMD" != "" ]; then
+	MIRRORCMD=$(find_in_computer $MIRRORCMD)
+	if [ $FINDISOVAR ]; then
+		mount_device $MIRRORCMD $FINDISOMNT/$MIRROR rbind
+	else
+		mount_device $MIRRORCMD $(dirname $DATA)/$MIRROR rbind
+	fi
+fi
+
 if [ -d $(dirname $DATA)/$MIRROR ]; then
 	echolog "Setup repo for mirror iso..."
 	mount -n -o remount,add:1:/$(dirname $DATA)/$MIRROR=ro aufs $UNION
