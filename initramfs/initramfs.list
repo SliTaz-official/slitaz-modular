@@ -2,6 +2,7 @@ busybox
 glibc-base
 kbd-busybox
 linux
+linux-udf
 slitaz-base-files
 slitaz-boot-scripts
 zlib
