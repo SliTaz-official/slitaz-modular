@@ -56,8 +56,10 @@ www() {
 		;;
 		bb)
 			[ -d /usr/share/slitaz/web-bb ] && cp -a /usr/share/slitaz/web-bb $WWW_DIR/bb
-			[ -d /usr/share/slitaz/web ] && cp -a /usr/share/slitaz/web $WWW_DIR/bb/web
+			#[ -d /usr/share/slitaz/web ] && cp -a /usr/share/slitaz/web $WWW_DIR/bb/web
 			[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $WWW_DIR/bb/pics
+			[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
+			[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
 			echo -e "$WWW_DIR/bb" | tazwok webserver on
 		;;
 		pkgs)
@@ -109,6 +111,9 @@ www() {
 			[ -f $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config ] && cp -a $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config /etc/mercurial/hgweb.config
 			#[ -f /etc/mercurial/hgweb.conf ] && sed -i 's|style = slitaz|style = gitweb|g' /etc/mercurial/hgweb.config
 		;;
+		lfs)
+			[ -d $WWW_DIR/lfs ] || ln -sf /usr/share/doc/lfs-book $WWW_DIR/lfs
+		;;
 	esac
 }
 
@@ -125,7 +130,7 @@ repos() {
 		if [ ! -f $REPOS_DIR/$repo/.hg/hgrc-web ]; then
 			touch $REPOS_DIR/$repo/.hg/hgrc-web
 			echo "[paths]" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			echo "path = http://hg.slitaz.org/$repo/" >> $REPOS_DIR/$repo/.hg/hgrc-web
+			echo "default = http://hg.slitaz.org/$repo/" >> $REPOS_DIR/$repo/.hg/hgrc-web
 			echo "[web]" >> $REPOS_DIR/$repo/.hg/hgrc-web
 			#[ -d $REPOS_DIR/$repo/.hg ] && echo "style = slitaz" >> $REPOS_DIR/$repo/.hg/hgrc-web
 			echo "staticurl = http://hg.slitaz.org/static/" >> $REPOS_DIR/$repo/.hg/hgrc-web
@@ -200,18 +205,20 @@ case "$COMMAND" in
 		done
 		echo "127.0.0.1 localhost $(cat /etc/hostname)" > /etc/hosts
 		for hostname in $ADDRESS; do 
-			END_IP=$(($END_IP+1))
-			for i in $END_IP; do
 				#if [ ! $(grep -l "${BASE_IP}.$i $hostname" /etc/hosts) ]; then
-					echo "${BASE_IP}.$i $hostname" >> /etc/hosts
+					echo "$IP_ADDR $hostname" >> /etc/hosts
 				#fi
-			done 
 		done
+		if [ "$IP_ADDR" != "127.0.0.1" ]; then
+			if [ ! $(grep -l 'dhcp-option=option:router' /etc/dnsmasq.conf) ]; then
+				echo "dhcp-option=option:router,$ROUTER_IP" >> /etc/dnsmasq.conf
+			fi
+		fi
+		echo "$PKGDIR" > $LOCALSTATE/mirror
 		if [ "$COMMAND" = "tank-only" ]; then
 			[ -f $VHOST_TANK_FILE ] && ln -sf $VHOST_TANK_FILE /etc/lighttpd/vhosts.conf
 		elif [ "$COMMAND" = "mirror-only" ]; then
 			[ -f $VHOST_MIRROR_FILE ] && ln -sf $VHOST_MIRROR_FILE /etc/lighttpd/vhosts.conf
-			
 		else
 			[ -f $VHOST_FILE ] && ln -sf $VHOST_FILE /etc/lighttpd/vhosts.conf
 		fi
