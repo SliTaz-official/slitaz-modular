@@ -1,6 +1,7 @@
 #!/bin/bash
 
 . /etc/slitaz/slitaz.conf 
+. /etc/slitaz/tazwok.conf 
 
 QUIET="y"
 FORCE="y"
@@ -42,6 +43,7 @@ MIRROR_DIR="mirror"
 PKGISO_DIR="$ISODIR/$MIRROR_DIR/packages"
 SRCISO_DIR="$ISODIR/$MIRROR_DIR/src"
 BACKUP_ALL="no"
+KEY_FILES="init liblinuxlive linuxrc"
 CLEAN_MODULES_DIR="no"
 CLEAN_INITRAMFS="no"
 PACKAGES_REPOSITORY="$LOCAL_REPOSITORY/packages"
@@ -76,8 +78,15 @@ _overlay()
 	if [ -d ${MODULES_DIR}/overlay ]; then
 		rm -rf ${MODULES_DIR}/overlay
 		cp -rf ${PROFILE}/overlay ${MODULES_DIR}
+		cp -af ${BASEDIR}/initramfs/* ${MODULES_DIR}/overlay
 	else
 		cp -rf ${PROFILE}/overlay ${MODULES_DIR}
+		cp -af ${BASEDIR}/initramfs/* ${MODULES_DIR}/overlay
+	fi
+
+	if [ -f ${MODULES_DIR}/overlay/etc/local-mirror.conf ]; then
+		sed -i "s|^#PKGDIR|PKGDIR=/packages|g" ${MODULES_DIR}/overlay/etc/local-mirror.conf
+		sed -i "s|^#SRCDIR|SRCDIR=/src|g" ${MODULES_DIR}/overlay/etc/local-mirror.conf
 	fi
 
 	if [ "${QUIET}" = "y" ]; then
@@ -149,19 +158,21 @@ initramfs () {
 		rm -f $INITRAMFS/boot/vmlinuz*
 		if [ -f $INITRAMFS/boot/gpxe ]; then
 			cp -a $INITRAMFS/boot/gpxe $ISODIR/boot/gpxe
+			rm -f $INITRAMFS/boot/gpxe
 		fi
 	#fi
-
 	if [ -d $BASEDIR/initramfs ]; then
-		cp -af $BASEDIR/initramfs/* $INITRAMFS
+		for i in $KEY_FILES; do
+			if [ -f $BASEDIR/initramfs/$i ]; then
+				cp -af $BASEDIR/initramfs/$i $INITRAMFS
+			fi
+		done
 	fi
 	
-	if [ -f $INITRAMFS/etc/local-mirror.conf ]; then
-		sed -i "s|^#PKGDIR|PKGDIR=/packages|g" $INITRAMFS/etc/local-mirror.conf
-		sed -i "s|^#SRCDIR|SRCDIR=/src|g" $INITRAMFS/etc/local-mirror.conf
+	if [ -f $INITRAMFS/liblinuxlive ]; then
+		sed -i "s|^#MIRROR|MIRROR=$MIRROR_DIR|g" $INITRAMFS/liblinuxlive
 	fi
-	
-	sed -i "s|^#MIRROR|MIRROR=$MIRROR_DIR|g" $INITRAMFS/liblinuxlive
+
 }
 
 copy_hg() {
@@ -225,6 +236,15 @@ slitaz_union () {
 }
 
 union () {
+	if [ "$BASE_MODULES" != "" ]; then
+		UNION_MODULES="$BASE_MODULES $MODULES"
+	elif [ "$MODULES" != "" ]; then
+		UNION_MODULES="$MODULES"
+	else
+		error "Error: no modules assigned in config for profile."
+		exit 1
+	fi
+	
 	mkdir -p $WORKING
 	mkdir -p $UNION
 	mkdir -p $LOG
@@ -247,12 +267,6 @@ union () {
 	# This will be copyed to /mnt/memory/changes on boot
 	initramfs
 
-	if [ $BASE_MODULES ]; then
-		UNION_MODULES="$BASE_MODULES $MODULES"
-	else
-		UNION_MODULES="$MODULES"
-	fi
-	
 	mount -t aufs -o br:${LASTBR}=rw aufs ${UNION}
 	if [ $? -ne 0 ]; then 
 		error "Error mounting $union."
@@ -276,14 +290,12 @@ union () {
 		info "Adding $LASTBR as lower branch of union."
 		mount -t aufs -o remount,mod:${LASTBR}=rr+wh aufs $UNION
 		LASTBR="$MODULES_DIR/${mod}"
-		
 
 		slitaz_union
 	done
-
+	
 	if [ -d ${UNION}/${INSTALLED} ]; then
-		find ${UNION}/${INSTALLED} -type d | sort > $ISODIR/packages-installed.list
-		sed -i "s|${UNION}/${INSTALLED}/||g" $ISODIR/packages-installed.list
+		ls ${UNION}/${INSTALLED} | sort > $ISODIR/packages-installed.list
 	fi
 	
 	info "Unmounting union"
@@ -310,25 +322,38 @@ backup_pkg() {
 		tazwok gen-cooklist $ISODIR/packages-installed.list > $ISODIR/cookorder.list
 		[ -f $INCOMING_REPOSITORY/wok-wanted.txt ] || tazwok gen-wok-db
 		
-		#CACHE_REPOSITORY="/var/cache/tazpkg/$(cat /etc/slitaz-release)/packages"
-		
+		CACHE_REPOSITORY="$CACHE_DIR/$(cat /etc/slitaz-release)/packages"
+
 		cat $ISODIR/cookorder.list | grep -v "^#" | while read pkg; do
 			rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
 			pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $PACKAGES_REPOSITORY/packages.txt | \
 				tail -1 | sed 's/ *//')"
+			incoming_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $INCOMING_REPOSITORY/packages.txt | \
+				tail -1 | sed 's/ *//')"
 			for wanted in $rwanted; do
-				if [ -f $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg ]; then
+				if [ -f $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg ]; then
+					ln -sf $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$incoming_pkg_VERSION.tazpkg
+				elif [ -f $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg ]; then
 					ln -sf $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$pkg_VERSION.tazpkg
+				elif [ -f $CACHE_REPOSITORY/$Wanted-$pkg_VERSION.tazpkg ]; then
+					ln -sf $CACHE_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$pkg_VERSION.tazpkg
 				fi
 			done
+		
 			for i in $(ls $WOK/$pkg/receipt); do
-				unset SOURCE TARBALL WANTED PACKAGE VERSION pkg_VERSION
+				unset SOURCE TARBALL WANTED PACKAGE VERSION pkg_VERSION COOK_OPT
 				source $i
 				pkg_VERSION="$(grep -m1 -A1 ^$PACKAGE$ $PACKAGES_REPOSITORY/packages.txt | \
 					tail -1 | sed 's/ *//')"
+				incoming_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $INCOMING_REPOSITORY/packages.txt | \
+					tail -1 | sed 's/ *//')"
 				[ "$WGET_URL" ] || continue
-				if [ -f $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
+				if [ -f $INCOMING_REPOSITORY/$PACKAGE-$incoming_pkg_VERSION.tazpkg ]; then
+					ln -sf $INCOMING_REPOSITORY/$PACKAGE-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$incoming_pkg_VERSION.tazpkg
+				elif [ -f $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
 					ln -sf $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg
+				elif [ -f $CACHE_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
+					ln -sf $CACHE_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg
 				fi
 			done
 		done
@@ -348,7 +373,7 @@ backup_src() {
 			cat $ISODIR/cookorder.list | grep -v "^#"| while read pkg; do
 				#rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
 				for i in $(ls $WOK/$pkg/receipt); do
-					unset SOURCE TARBALL WANTED PACKAGE VERSION 
+					unset SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT
 					source $i
 					{ [ ! "$TARBALL" ] || [ ! "$WGET_URL" ] ; } && continue
 					if [ ! -f "$SOURCES_REPOSITORY/$TARBALL" ] && \
@@ -424,10 +449,16 @@ _mksquash () {
 }
 
 imgcommon () {
+	for MOD in ${BASE_MODULES}; do
+		if [ -d "${MODULES_DIR}/${MOD}" ]; then
+			_mksquash "${MODULES_DIR}/${MOD}" "$ISODIR/$CDNAME/base" /var/lib/tazpkg/installed
+		fi
+	done
+	
 	if [ "${MODULES}" != "" ]; then
 		for MOD in ${MODULES}; do
 			if [ -d "${MODULES_DIR}/${MOD}" ]; then
-				_mksquash "${MODULES_DIR}/${MOD}" "$ISODIR/$CDNAME/base" /var/lib/tazpkg/installed
+				_mksquash "${MODULES_DIR}/${MOD}" "$ISODIR/$CDNAME/modules" /var/lib/tazpkg/installed
 			fi
 		done
 	fi
@@ -506,9 +537,11 @@ make_iso () {
 	fi
 
 	info "Creating ISO image..."
-	genisoimage -R -J -f -o $IMGNAME -b boot/isolinux/isolinux.bin \
+	genisoimage -R -l -f -o $IMGNAME -b boot/isolinux/isolinux.bin \
 	-c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
-	-V "SliTaz" -input-charset iso8859-1 -boot-info-table $ISODIR
+	-uid 0 -gid 0 \
+	-udf -allow-limited-size -iso-level 3 \
+	-V "SliTaz" -input-charset utf-8 -boot-info-table $ISODIR
 	if [ -x /usr/bin/isohybrid ]; then
 		info "Creating hybrid ISO..."
 		isohybrid "${IMGNAME}"
