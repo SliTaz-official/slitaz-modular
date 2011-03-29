@@ -14,7 +14,12 @@ fontconfig
 freetype
 gamin
 gcc-lib-base
-get-wifi-firmware
+#get-wifi-firmware
+firmware-iwlwifi-4965
+firmware-iwlwifi-5000
+firmware-iwlwifi-5150
+firmware-iwlwifi-6000
+firmware-iwlwifi-6050
 glib
 glibc-base
 gpxe
@@ -153,3 +158,5 @@ libunique
 libwebkit
 midori
 gettext-base
+pcf-uming
+texinfo

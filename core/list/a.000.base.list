@@ -31,6 +31,5 @@ tazwok
 udev
 zlib
 ncurses-common
-kqemu
 linux-firmware
 aufs-utils
