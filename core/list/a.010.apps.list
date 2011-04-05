@@ -19,13 +19,7 @@ audacious-plugins
 audacity
 abiword
 gnumeric
-#modular-apps
-celestia
-frozen-bubble
-warzone2100
-virtualbox-ose
-lmms
-blender
-gimp
-gimp-console
-gimp-plug-ins
+xchm
+lxterminal
+# other-apps
+uget

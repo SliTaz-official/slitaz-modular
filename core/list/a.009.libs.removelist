@@ -1,5 +1,3 @@
-abiword
-gnumeric
 mplayer
 mencoder
 zsnes
@@ -19,5 +17,17 @@ avidemux
 audacious
 audacious-plugins
 audacity
-# other-apps
-uget
+abiword
+gnumeric
+xchm
+lxterminal
+#modular-apps
+celestia
+frozen-bubble
+warzone2100
+virtualbox-ose
+lmms
+blender
+gimp
+gimp-console
+gimp-plug-ins
