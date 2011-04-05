@@ -11,7 +11,7 @@ COMMAND="$1"
 
 usage() {
 	echo "$0 $VERSION"
-	echo "$0 [on|off|tank-only|mirror-only]"
+	echo "$0 [on|off|update-repos|tank-only|mirror-only]"
 	exit 1 
 }
 
@@ -28,47 +28,50 @@ if [ "$COMMAND" = "mirror-only" ]; then
 fi
 
 [ -d $REPOS_DIR ] || continue
-[ -d $WWW_DIR ] || mkdir -p $WWW_DIR
-[ -L /var/www/vhosts ] || ln -sf $WWW_DIR /var/www/vhosts
+[ -d $MAIN_WWW_DIR ] || mkdir -p $MAIN_WWW_DIR
+[ -L /var/www/vhosts ] || ln -sf $MAIN_WWW_DIR /var/www/vhosts
 
 www() {
 	b=$1
 	case "$b" in
 		website)
-			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $WWW_DIR
+			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $MAIN_WWW_DIR
 		;;
 		people)
-			[ -d $REPOS_DIR/slitaz-forge/people ] && ln -s $REPOS_DIR/slitaz-forge/people $WWW_DIR/people
+			[ -d $REPOS_DIR/slitaz-forge/people ] && ln -s $REPOS_DIR/slitaz-forge/people $MAIN_WWW_DIR/people
 		;;
 		doc)
-			[ -d $REPOS_DIR/slitaz-forge/doc ] && cp -a $REPOS_DIR/slitaz-forge/doc $WWW_DIR/doc
-			[ -d /var/www/dokuwiki ] && cp -a /var/www/dokuwiki/* $WWW_DIR/doc
+			[ -d $DOC_WWW_DIR ] && cp -a $DOC_WWW_DIR $MAIN_WWW_DIR/doc
+			[ -d /var/www/dokuwiki ] && cp -a /var/www/dokuwiki/* $MAIN_WWW_DIR/doc
 			VAR="index media pages"
 			for i in $VAR; do
-				[ -d $REPOS_DIR/slitaz-doc-wiki-data ] && cp -a $REPOS_DIR/slitaz-doc-wiki-data/$i $WWW_DIR/doc/data
+				[ -d $REPOS_DIR/slitaz-doc-wiki-data ] && cp -a $REPOS_DIR/slitaz-doc-wiki-data/$i $MAIN_WWW_DIR/doc/data
 			done
-			[ -d $REPOS_DIR/slitaz-doc-wiki-data/plugins ] && cp -a $REPOS_DIR/slitaz-doc-wiki-data/plugins  $WWW_DIR/doc/lib
-			chown root.root -R $WWW_DIR/doc
-			chmod 777 -R $WWW_DIR/doc
+			[ -d $REPOS_DIR/slitaz-doc-wiki-data/plugins ] && cp -a $REPOS_DIR/slitaz-doc-wiki-data/plugins  $MAIN_WWW_DIR/doc/lib
+			chown root.root -R $MAIN_WWW_DIR/doc
+			chmod 777 -R $MAIN_WWW_DIR/doc
 		;;
 		pizza)
-			[ -d $REPOS_DIR/slitaz-pizza/php ] && ln -sf $REPOS_DIR/slitaz-pizza/php $WWW_DIR/pizza
+			[ -d $PIZZA_WWW_DIR ] && ln -sf $PIZZA_WWW_DIR $MAIN_WWW_DIR/pizza
 		;;
 		bb)
-			[ -d /usr/share/slitaz/web-bb ] && cp -a /usr/share/slitaz/web-bb $WWW_DIR/bb
-			#[ -d /usr/share/slitaz/web ] && cp -a /usr/share/slitaz/web $WWW_DIR/bb/web
-			[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $WWW_DIR/bb/pics
+			[ -d /usr/share/slitaz/web-bb ] && cp -a /usr/share/slitaz/web-bb $MAIN_WWW_DIR/bb
+			#[ -d /usr/share/slitaz/web ] && cp -a /usr/share/slitaz/web $MAIN_WWW_DIR/bb/web
+			[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $MAIN_WWW_DIR/bb/pics
 			[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
+			[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/wok
 			[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
-			echo -e "$WWW_DIR/bb" | tazwok webserver on
+			[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/wok
+			[ -f $SRCDIR/sources.list ] || tazwok gen-src $SRCDIR
+			echo -e "$MAIN_WWW_DIR/bb" | tazwok webserver on
 		;;
 		pkgs)
-			[ -d $wWW_DIR/pkgs ] || mkdir -p $WWW_DIR/pkgs
+			[ -d $MAIN_WWW_DIR/pkgs ] || mkdir -p $MAIN_WWW_DIR/pkgs
 		
-			#[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style/* $WWW_DIR/pkgs
-			#[ -f /var/lib/tazpkg-web/search.cgi ] && cp -a /var/lib/tazpkg-web/search.cgi $WWW_DIR/pkgs
-			[ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style/* $WWW_DIR/pkgs
-			[ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi $WWW_DIR/pkgs
+			#[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
+			#[ -f /var/lib/tazpkg-web/search.cgi ] && cp -a /var/lib/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
+			[ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
+			[ -f $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
 			[ -d $COOKING ] || mkdir -p $COOKING
 			[ -d $STABLE ] || mkdir -p $STABLE
 			[ -d $REPOS_DIR/flavors ] && ln -sf $REPOS_DIR/flavors $COOKING/flavors
@@ -79,23 +82,23 @@ www() {
 			[ -d $SRCDIR ] && ln -sf $SRCDIR /home/slitaz/$(cat /etc/slitaz-release)/src
 		;;
 		mirror)
-			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info $WWW_DIR
-			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz $WWW_DIR
-			[ -d $WWW_DIR/slitaz/mirror/packages ] || mkdir -p $WWW_DIR/slitaz/mirror/packages
-			[ -d $PKGDIR ] && ln -sf $PKGDIR $WWW_DIR/slitaz/mirror/packages/$(cat /etc/slitaz-release)
+			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info $MAIN_WWW_DIR
+			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz $MAIN_WWW_DIR
+			[ -d $MAIN_WWW_DIR/slitaz/mirror/packages ] || mkdir -p $MAIN_WWW_DIR/slitaz/mirror/packages
+			[ -d $PKGDIR ] && ln -sf $PKGDIR $MAIN_WWW_DIR/slitaz/mirror/packages/$(cat /etc/slitaz-release)
 			if [ -d $SRCDIR ]; then
 				for i in $(ls $SRCDIR); do
-					[ -d $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1} ] || mkdir -p $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}
-					[ -f $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i ] || ln -s $SRCDIR/$i $WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i
+					[ -d $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1} ] || mkdir -p $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}
+					[ -f $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i ] || ln -s $SRCDIR/$i $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i
 				done
 			fi
 		;;
 		boot)
-			[ -d $REPOS_DIR/slitaz-forge/$b/web ] && cp -a $REPOS_DIR/slitaz-forge/$b/web $WWW_DIR/$b
-			[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $WWW_DIR/$b/pics
+			[ -d $BOOT_WWW_DIR ] && cp -a $BOOT_WWW_DIR $MAIN_WWW_DIR/$b
+			[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $MAIN_WWW_DIR/$b/pics
 		;;
 		tank)
-			[ -d $REPOS_DIR/slitaz-forge/$b/web ] && ln -sf $REPOS_DIR/slitaz-forge/$b/web $WWW_DIR/$b
+			[ -d $TANK_WWW_DIR ] && ln -sf $TANK_WWW_DIR $MAIN_WWW_DIR/$b
 			[ -f /usr/share/awstats/extras/update ] && ln -sf /usr/share/awstats/extras/update /usr/sbin/awsupdate_all
 			[ -d $REPOS_DIR/slitaz-forge/$b/files/etc/awstats ] && cp -a $REPOS_DIR/slitaz-forge/$b/files/etc/awstats/* /etc/awstats
 			for i in $ADDRESS; do
@@ -106,13 +109,13 @@ www() {
 			done
 		;;
 		hg)
-			[ -d $WWW_DIR/hg ] || mkdir -p $WWW_DIR/hg
-			[ -f /usr/share/examples/mercurial/hgwebdir.cgi ] && cp -a /usr/share/examples/mercurial/hgwebdir.cgi $WWW_DIR/hg
+			[ -d $MAIN_WWW_DIR/hg ] || mkdir -p $MAIN_WWW_DIR/hg
+			[ -f /usr/share/examples/mercurial/hgwebdir.cgi ] && cp -a /usr/share/examples/mercurial/hgwebdir.cgi $MAIN_WWW_DIR/hg
 			[ -f $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config ] && cp -a $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config /etc/mercurial/hgweb.config
 			#[ -f /etc/mercurial/hgweb.conf ] && sed -i 's|style = slitaz|style = gitweb|g' /etc/mercurial/hgweb.config
 		;;
 		lfs)
-			[ -d $WWW_DIR/lfs ] || ln -sf /usr/share/doc/lfs-book $WWW_DIR/lfs
+			[ -d $MAIN_WWW_DIR/lfs ] || ln -sf /usr/share/doc/lfs-book $MAIN_WWW_DIR/lfs
 		;;
 	esac
 }
@@ -196,9 +199,9 @@ repos() {
 
 case "$COMMAND" in 
 	on|tank-only|mirror-only)
-		[ -d $WWW_DIR/mirror-info ] && WWW="${WWW/mirror /}"
+		[ -d $MAIN_WWW_DIR/mirror-info ] && WWW="${WWW/mirror /}"
 		for c in $WWW; do
-			if [ ! -d $WWW_DIR/$c ]; then
+			if [ ! -d $MAIN_WWW_DIR/$c ]; then
 				www $c
 				[ "$c" = "hg" ] && repos
 			fi
@@ -224,6 +227,15 @@ case "$COMMAND" in
 		fi
 		chown -R www.www /home/slitaz/www
 		[ -f /etc/init.d/lighttpd ] && /etc/init.d/lighttpd start
+		;;
+	update-repos)
+		for i in $(ls $REPOS_DIR); do
+			if [ -d $REPOS_DIR/$i/.hg ]; then
+				cd $REPOS_DIR/$i
+				echo "Updaing $i repo..."
+				hg pull -u
+			fi
+		done
 		;;
 	off)
 		[ -f /etc/init.d/lighttpd ] && /etc/init.d/lighttpd stop
