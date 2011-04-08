@@ -1,0 +1,45 @@
+#!/bin/bash
+
+PATH=.:$(dirname $0):/usr/lib:$PATH
+. liblinuxlive || exit 1
+
+. /etc/slitaz/slitaz.conf
+ISODIR="$SLITAZ_DIR/slitaz-modular/$PROFILE/iso"
+PKGLIST="$SLITAZ_DIR/slitaz-modular/$PROFILE/packages.list"
+INSTALL_FILES="receipt files.list md5sum volatile.cpio.gz"
+
+if [ "$1" = "" ]; then
+   echo
+   echo "Convert package into .xz compressed module"
+   echo "usage: $0 pkgname"
+   exit 1
+fi
+
+CUR_DIR="$PWD"
+
+tmp_dir=/tmp/taz2xz-$$
+mkdir -p $tmp_dir
+cd $tmp_dir
+
+tazpkg get $1 || exit 1
+PACKAGE_FILE="$(ls $1*)"
+{ cpio --quiet -i receipt > /dev/null 2>&1; } < $PACKAGE_FILE
+source receipt || exit 1
+tazpkg extract $PACKAGE-$VERSION.tazpkg
+for i in $INSTALL_FILES; do
+	if [ -f "$PACKAGE-$VERSION/$i" ]; then
+		mkdir -p $PACKAGE-$VERSION/fs/$INSTALLED/$PACKAGE
+		cp -a $PACKAGE-$VERSION/$i $PACKAGE-$VERSION/fs/$INSTALLED/$PACKAGE/$i
+	fi
+done
+if [ -f $CUR_DIR/$PACKAGE-$VERSION.xz ]; then
+	rm -f $CUR_DIR/$PACKAGE-$VERSION.xz
+fi
+create_module $PACKAGE-$VERSION/fs $CUR_DIR/$PACKAGE-$VERSION.xz -comp xz -Xbcj x86
+
+cd $CUR_DIR
+rm -rf $tmp_dir
+#[ -f $tmp_dir/receipt ] && rm -rf $tmp_dir/receipt
+#[ -d $tmp_dir/$PACKAGE-$VERSION ] && rm -rf $tmp_dir/$PACKAGE-$VERSION
+#[ -f $tmp_dir/$PACKAGE-$VERSION.tazpkg ] & rm -rf $tmp_dir/$PACKAGE-$VERSION.tazpkg
+
