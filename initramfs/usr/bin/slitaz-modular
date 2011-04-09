@@ -1,0 +1,392 @@
+#!/bin/sh
+
+. /etc/slitaz/slitaz.conf
+
+BASEDIR="$LOCAL_REPOSITORY/slitaz-modular"
+PROFILE="$BASEDIR/$1"
+WORKING="$BASEDIR/working"
+CDNAME="slitaz"
+QUIET="y"
+FORCE="y"
+export LABEL="slitaz_${1}_$(date +%Y%m)"
+PUBLISHER="Slitaz-$1"
+APPLICATION="Slitaz-$1"
+EXT="xz"
+COMPRESSION="xz -Xbcj x86"
+WORKING="$PROFILE/working"
+INITRAMFS="$WORKING/initramfs"
+UNION="$WORKING/union"
+LOG="$WORKING/log"
+ISODIR="$WORKING/iso"
+IMGNAME="$PROFILE/$CDNAME-$1-$(date +%F).iso"
+IMGMD5NAME="$IMGNAME.md5"
+SGNFILE="$ISODIR/$CDNAME/livecd.sgn"
+MODULES_DIR="$WORKING/modules"
+HG_DIR="$WORKING/hg"
+HG_URL="http://hg.slitaz.org"
+HG_PATH="home/slitaz/repos"
+COPY_HG="no"
+UPDATE_HG="no"
+BACKUP_SOURCES="no"
+BACKUP_PACKAGES="no"
+MIRROR_DIR="mirror"
+PKGISO_DIR="$ISODIR/$MIRROR_DIR/packages"
+SRCISO_DIR="$ISODIR/$MIRROR_DIR/src"
+BACKUP_ALL="no"
+KEY_FILES="init liblinuxlive linuxrc"
+INSTALL_FILES="files.list md5sum receipt volatile.cpio.gz"
+CLEAN_MODULES_DIR="no"
+CLEAN_INITRAMFS="no"
+PACKAGES_REPOSITORY="$LOCAL_REPOSITORY/packages"
+INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
+SOURCES_REPOSITORY="$LOCAL_REPOSITORY/src"
+HG_LIST="flavors flavors-stable slitaz-base-files slitaz-boot-scripts \
+ slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge \
+ slitaz-modular slitaz-pizza slitaz-tools tazlito tazpanel tazpkg tazusb tazweb \
+ tazwok website wok wok-stable wok-tiny wok-undigest"
+
+error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
+warn ()  { echo -e "\033[1;33;40m*** \033[1;37;40m$@\033[1;0m"; }
+info () { echo -e "\033[1;32;40m>>> \033[1;37;40m$@\033[1;0m"; }
+
+
+if [ ! -f "$PROFILE/packages.list" ]; then
+	echo "$PROFILE/packages.list doesn't exist."
+	exit 1	
+elif [ ! -f "$PROFILE/config" ]; then
+	echo "$PROFILE/config doesn't exist."
+	exit 1	
+fi
+
+cd $PROFILE
+
+lzma_switches()
+{
+	echo "-d$(echo 24) -mt$(grep ^processor < /proc/cpuinfo | wc -l)"
+}
+
+# Pack rootfs
+pack_rootfs()
+{
+	( cd $1 ; find . -print | cpio -o -H newc ) | \
+	if [ -x /usr/bin/lzma ]; then
+		info "Generating lzma'ed initramfs... "
+		lzma e -si -so $(lzma_switches $1) > $2
+	else
+		info "Generating gziped initramfs... "
+		gzip -9 > $2
+	fi
+	echo 1 > /tmp/rootfs
+}
+
+look_for_dep()
+{
+		grep -m1 ^$1$'\t' $INCOMING_REPOSITORY/wok-depends.txt | \
+			cut -f 2 | sed 's|^[ \t]*||g' | sed 's| |\n|g' | sed '/^$/d'
+}
+
+_overlay()
+{
+	if [ -d ${MODULES_DIR}/overlay ]; then
+		rm -rf ${MODULES_DIR}/overlay
+		cp -rf ${PROFILE}/overlay ${MODULES_DIR}
+		cp -af ${BASEDIR}/initramfs/* ${MODULES_DIR}/overlay
+	else
+		cp -rf ${PROFILE}/overlay ${MODULES_DIR}
+		cp -af ${BASEDIR}/initramfs/* ${MODULES_DIR}/overlay
+	fi
+
+	if [ -f ${MODULES_DIR}/overlay/etc/local-mirror.conf ]; then
+		sed -i "s|^#PKGDIR|PKGDIR=/packages|g" ${MODULES_DIR}/overlay/etc/local-mirror.conf
+		sed -i "s|^#SRCDIR|SRCDIR=/src|g" ${MODULES_DIR}/overlay/etc/local-mirror.conf
+	fi
+	create_module "${MODULES_DIR}/overlay" "${ISODIR}/${CDNAME}/modules/zzz.overlay.${EXT}" >/dev/null
+}
+
+initramfs () {
+
+	if [ ! -e "$BASEDIR/initramfs/initramfs.list" ]; then
+		error "error: $BASEDIR/initramfs/initramfs.list doesn't exist, aborting."
+		exit 1
+	fi
+
+	if [ "$CLEAN_INITRAMFS" = "yes" ]; then
+		if [ -d ${INITRAMFS} ]; then
+			rm -Rf ${INITRAMFS}
+		fi
+	fi
+
+	if [ ! -d ${INITRAMFS} ]; then
+		mkdir -p $INITRAMFS
+	fi
+
+	info "Making bootable image"
+	cat "$BASEDIR/initramfs/initramfs.list" | grep -v "^#" | while read pkgname; do
+		if [ ! -f ${INITRAMFS}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
+			tazpkg get-install $pkgname --root=$INITRAMFS | tee -a $LOG/initramfs.log
+			echo "$pkgname" >> $ISODIR/packages-order.txt
+			sleep 1
+		else
+			info "${pkgname} installed"
+		fi
+	done
+
+	if [ ! -d $ISODIR/boot ]; then
+		mkdir -p $ISODIR/boot
+	fi
+
+	#if [ ! -f $ISODIR/boot/bzImage ]; then
+		cp -a $INITRAMFS/boot/vmlinuz* $ISODIR/boot/bzImage
+		rm -f $INITRAMFS/boot/vmlinuz*
+		if [ -f $INITRAMFS/boot/gpxe ]; then
+			cp -a $INITRAMFS/boot/gpxe $ISODIR/boot/gpxe
+			rm -f $INITRAMFS/boot/gpxe
+		fi
+	#fi
+	if [ -d $BASEDIR/initramfs ]; then
+		for i in $KEY_FILES; do
+			if [ -f $BASEDIR/initramfs/$i ]; then
+				cp -af $BASEDIR/initramfs/$i $INITRAMFS
+			fi
+		done
+	fi
+	
+	if [ -f $INITRAMFS/liblinuxlive ]; then
+		sed -i "s|^#MIRROR|MIRROR=$MIRROR_DIR|g" $INITRAMFS/liblinuxlive
+	fi
+
+}
+
+copy_hg() {
+	if [ ! -d ${HG_DIR}/${1}/${HG_PATH}/${1} ]; then
+		info "Cloning $1 repo ..."
+		hg clone $HG_URL/${1} ${HG_DIR}/${1}/${HG_PATH}/${1}
+		if [ $(grep -l "^HG_URL=$HG_URL" $PROFILE/config) ]; then
+			if [ ! $(grep -l "$HG_URL" ${HG_DIR}/${1}/${HG_PATH}/${1}/.hg/hgrc) ]; then
+				echo "mirror = $HG_URL/$1" >> ${HG_DIR}/${1}/${HG_PATH}/${1}/.hg/hgrc
+			fi
+		fi
+	elif [ -d ${HG_DIR}/${1}/${HG_PATH}/${1} -a ${UPDATE_HG} = "yes" ]; then
+		info "Updating $1 repo ..."
+		cd ${HG_DIR}/${1}/${HG_PATH}/${1}
+		hg pull $HG_URL/${1} -u
+		if [ $(grep -l "^HG_URL=$HG_URL" $PROFILE/config) ]; then
+			if [ ! $(grep -l "$HG_URL" ${HG_DIR}/${1}/${HG_PATH}/${1}/.hg/hgrc) ]; then
+				echo "mirror = $HG_URL/$1" >> ${HG_DIR}/${1}/${HG_PATH}/${1}/.hg/hgrc
+			fi
+		fi
+		cd $PROFILE
+	fi
+}
+
+mktaz2xz()
+{
+	CUR_DIR="$2"
+
+	tazpkg get $1 || exit 1
+	PACKAGE_FILE="$(find -name "$1*.tazpkg")"
+	if [ -f "$PACKAGE_FILE" ]; then
+		{ cpio --quiet -i receipt > /dev/null 2>&1; } < $PACKAGE_FILE
+		source receipt || exit 1
+		tazpkg extract $PACKAGE-$VERSION.tazpkg
+		for i in $INSTALL_FILES; do
+			if [ -f "$PACKAGE-$VERSION/$i" ]; then
+				mkdir -p $PACKAGE-$VERSION/fs/$INSTALLED/$PACKAGE
+				cp -a $PACKAGE-$VERSION/$i $PACKAGE-$VERSION/fs/$INSTALLED/$PACKAGE/$i
+			fi
+		done
+		md5sum $PACKAGE-$VERSION.tazpkg > $PACKAGE-$VERSION/fs/$INSTALLED/$PACKAGE/pkgmd5
+		create_module $PACKAGE-$VERSION/fs $CUR_DIR/$PACKAGE-$VERSION.$EXT /var/lib/tazpkg/installed
+	fi
+}
+
+backup_all()
+{
+	if [ "${BACKUP_ALL}" = "yes" ]; then
+		[ -d $SRCISO_DIR ] || ln -sf $SOURCES_REPOSITORY $SRCISO_DIR
+		[ -d $PKGISO_DIR ] || ln -sf $PACKAGES_REPOSITORY $PKGISO_DIR
+	fi
+}
+
+create_module()
+{
+   if [ ! -d "$1" ]; then
+       error "Error: '$1' is not a directory"
+       return 1
+   fi
+
+   #if [ -d "${1}${3}" ]; then
+	#	time_dir="${3}"
+	#	sqimg="${2}/$(basename ${1}).${EXT}"
+	#	info "====> Generating SquashFS image for '${1}'"
+	#	if [ -e "${sqimg}" ]; then
+	#		dirhaschanged=$(find ${1}${time_dir} -newer ${sqimg})
+	#		if [ "${dirhaschanged}" != "" ]; then
+	#			info "SquashFS image '${sqimg}' is not up to date, rebuilding..."
+	#			rm -f "${sqimg}"
+	#		else
+	#			info "SquashFS image '${sqimg}' is up to date, skipping."
+	#			return
+	#		fi
+	#	fi
+	#fi
+	rm -f "$2" # overwrite, never append to existing file
+	mksquashfs "$1" "$2" -b 256K -comp $COMPRESSION >/dev/null
+	if [ $? -ne 0 ]; then return 1; fi
+	chmod a-wx "$2" # remove execute and write attrib
+	chmod a+r "$2" # add read for everyone
+}
+
+squashfs_hg() {
+	if [ ! -d "$ISODIR/$CDNAME/modules/hg" ]; then
+		mkdir -p "$ISODIR/$CDNAME/modules/hg"
+	fi
+	if [ -d ${HG_DIR}/${1}/ ]; then
+		create_module ${HG_DIR}/${1} "$ISODIR/$CDNAME/modules/hg/" /${HG_PATH}/${1}
+	fi
+}
+
+build_modules()
+{
+	mkdir -p $WORKING
+	mkdir -p $LOG
+	mkdir -p $ISODIR/${CDNAME}/base
+	mkdir -p $ISODIR/${CDNAME}/modules
+	mkdir -p $ISODIR/${CDNAME}/optional
+	mkdir -p $ISODIR/${CDNAME}/rootcopy
+	mkdir -p $ISODIR/${CDNAME}/tmp
+	
+	touch $SGNFILE
+	
+	[ -f $ISODIR/packages-order.txt ] && rm -f $ISODIR/packages-order.txt
+	touch $ISODIR/packages-order.txt
+	
+	initramfs
+	
+	if [ ! -d $SLITAZ_DIR/repos/wok ]; then
+		hg clone $HG_URL/wok $SLITAZ/repos/wok
+	fi
+	
+	if [ ! -f $INCOMING_REPOSITORY/wok-depends.txt ]; then
+		[ -d $INCOMING_REPOSITORY ] || mkdir -p $INCOMING_REPOSITORY
+		tazwok gen-wok-db --WOK=$SLITAZ_DIR/repos/wok
+	fi
+
+	for i in $(cat $PROFILE/packages.list); do
+		look_for_dep $i > /tmp/deps
+		if [ "$(cat /tmp/deps)" != "" ]; then
+			cat /tmp/deps | while read d; do
+				if [ ! $(grep "^$d$" $ISODIR/packages-order.txt) ]; then
+					[ -d $MODULES_DIR/$d ] || mkdir -p $MODULES_DIR/$d
+					[ -f $MODULES_DIR/$d/receipt ] && continue
+					echo "$d" >> $ISODIR/packages-order.txt
+					cd $MODULES_DIR/$d
+					mktaz2xz $d $ISODIR/$CDNAME/base
+					cd $PROFILE
+				fi
+			done
+		fi
+		if [ ! $(grep "^$i$" $ISODIR/packages-order.txt) ]; then
+			echo "$i" >> $ISODIR/packages-order.txt
+			[ -d $MODULES_DIR/$i ] || mkdir -p $MODULES_DIR/$i
+			[ -f $MODULES_DIR/$i/receipt ] && continue
+			cd $MODULES_DIR/$i
+			mktaz2xz $i $ISODIR/$CDNAME/base
+			cd $PROFILE
+		fi
+	done
+
+}
+
+imgcommon () {
+	
+	build_modules
+	
+	if [ "$HG_LIST" != "" ]; then
+		if [ "$COPY_HG" = "yes" ]; then
+			for hg in $HG_LIST; do
+				copy_hg $hg
+				squashfs_hg $hg
+			done
+		fi
+	fi
+
+	if [ "${HG_LIST}" != "" ]; then
+		for hg in ${HG_LIST}; do
+			if [ -d "${MODULES_DIR}/${hg}" ]; then
+				squashfs_hg $hg
+			fi
+		done
+	fi
+	
+	[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
+	[ -d $PKGISO_DIR ] && rm -r $PKGISO_DIR
+	
+	if [ -d ${HG_DIR}/wok ]; then
+		backup_pkg
+		backup_src
+	fi
+	
+	backup_all
+	
+	info "====> Making bootable image"
+
+	# Sanity checks
+	if [ ! -d "${ISODIR}" ]; then
+		error "Error: '${ISODIR}' doesn't exist. What did you do?!"
+		exit 1
+	fi
+
+	if [ ! -f "${SGNFILE}" ]; then
+ 		error "Error: the ${SGNFILE} file doesn't exist. This image won't do anything"
+		error "  Protecting you from yourself and erroring out here..."
+		exit 1
+	fi
+
+
+	if [ -e "${IMGNAME}" ]; then
+		if [ "${FORCE}" = "y" ]; then
+			info "Removing existing bootable image..."
+			rm -rf "${IMGNAME}"
+		else
+			error "Error: Image '${IMGNAME}' already exists, aborting."
+			exit 1
+		fi
+	fi
+   
+}
+
+make_iso () {
+	imgcommon
+
+	info "Creating rootfs.gz"
+	pack_rootfs $INITRAMFS $ISODIR/boot/rootfs.gz
+
+	if [ -d $PROFILE/rootcd ]; then
+		cp -af $PROFILE/rootcd/* $ISODIR/
+	fi
+
+	info "Copying isolinux files..."
+	if [ -d $INITRAMFS/boot/isolinux ]; then
+		mv -f $INITRAMFS/boot/isolinux $ISODIR/boot
+	fi
+
+	if [ -d ${PROFILE}/overlay ]; then
+		_overlay
+	fi
+
+	info "Creating ISO image..."
+	genisoimage -R -l -f -o $IMGNAME -b boot/isolinux/isolinux.bin \
+	-c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
+	-uid 0 -gid 0 \
+	-udf -allow-limited-size -iso-level 3 \
+	-V "SliTaz" -input-charset utf-8 -boot-info-table $ISODIR
+	if [ -x /usr/bin/isohybrid ]; then
+		info "Creating hybrid ISO..."
+		isohybrid "${IMGNAME}"
+	fi
+	md5sum "$IMGNAME" > $IMGMD5NAME
+	sed -i "s|$PROFILE/||g" $IMGMD5NAME
+}
+
+make_iso
