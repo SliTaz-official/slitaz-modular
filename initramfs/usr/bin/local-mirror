@@ -63,6 +63,7 @@ www() {
 			[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
 			[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/wok
 			[ -f $SRCDIR/sources.list ] || tazwok gen-src $SRCDIR
+			[ -d $REPOS_DIR/slitaz-modular ] && ln -sf $REPOS_DIR/slitaz-modular $COOKING/slitaz-modular
 			echo -e "$MAIN_WWW_DIR/bb" | tazwok webserver on
 		;;
 		pkgs)
@@ -92,6 +93,7 @@ www() {
 					[ -f $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i ] || ln -s $SRCDIR/$i $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i
 				done
 			fi
+			[ -d /var/www/slitaz ] || ln -sf $MAIN_WWW_DIR/slitaz /var/www/slitaz
 		;;
 		boot)
 			[ -d $BOOT_WWW_DIR ] && cp -a $BOOT_WWW_DIR $MAIN_WWW_DIR/$b
@@ -206,7 +208,7 @@ case "$COMMAND" in
 				[ "$c" = "hg" ] && repos
 			fi
 		done
-		echo "127.0.0.1 localhost $(cat /etc/hostname)" > /etc/hosts
+		echo "127.0.0.1 localhost $(cat /etc/hostname) tazpanel" > /etc/hosts
 		for hostname in $ADDRESS; do 
 				#if [ ! $(grep -l "${BASE_IP}.$i $hostname" /etc/hosts) ]; then
 					echo "$IP_ADDR $hostname" >> /etc/hosts
