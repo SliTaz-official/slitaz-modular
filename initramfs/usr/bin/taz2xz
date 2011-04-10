@@ -4,8 +4,7 @@ PATH=.:$(dirname $0):/usr/lib:$PATH
 . liblinuxlive || exit 1
 
 . /etc/slitaz/slitaz.conf
-ISODIR="$SLITAZ_DIR/slitaz-modular/$PROFILE/iso"
-PKGLIST="$SLITAZ_DIR/slitaz-modular/$PROFILE/packages.list"
+
 INSTALL_FILES="receipt files.list md5sum volatile.cpio.gz"
 
 if [ "$1" = "" ]; then
@@ -29,16 +28,16 @@ tazpkg get $1 || exit 1
 PACKAGE_FILE="$(find -name "$1-*.tazpkg")"
 { cpio --quiet -i receipt > /dev/null 2>&1; } < $PACKAGE_FILE
 source receipt || exit 1
-PACKAGE="${PACKAGE}-${VERSION}${EXTRAVERSION}"
-tazpkg extract $PACKAGE.tazpkg
+PKGNAME="${PACKAGE}-${VERSION}${EXTRAVERSION}"
+tazpkg extract $PKGNAME.tazpkg
 for i in $INSTALL_FILES; do
-	if [ -f "$PACKAGE/$i" ]; then
-		mkdir -p $PACKAGE/fs/$INSTALLED/$PACKAGE
-		cp -a $PACKAGE/$i $PACKAGE/fs/$INSTALLED/$PACKAGE/$i
+	if [ -f "$PKGNAME/$i" ]; then
+		mkdir -p $PKGNAME/fs/$INSTALLED/$PACKAGE
+		cp -a $PKGNAME/$i $PKGNAME/fs/$INSTALLED/$PACKAGE/$i
 	fi
 done
-md5sum $PACKAGE.tazpkg > $PACKAGE/fs/$INSTALLED/$PACKAGE/pkgmd5
-create_module $PACKAGE/fs $CUR_DIR/$PACKAGE.xz -comp xz -Xbcj x86
+md5sum $PKGNAME.tazpkg > $PKGNAME/fs/$INSTALLED/$PACKAGE/pkgmd5
+create_module $PKGNAME/fs $CUR_DIR/$PKGNAME.xz -comp xz -Xbcj x86
 
 cd $CUR_DIR
 rm -rf $tmp_dir
