@@ -190,7 +190,7 @@ mktaz2xz()
 		unset PKGNAME PACKAGE VERSION EXTRAVERSION
 		source receipt || exit 1
 		PKGNAME="${PACKAGE}-${VERSION}${EXTRAVERSION}"
-		tazpkg extract $PACKAGE.tazpkg
+		tazpkg extract $PKGNAME.tazpkg
 		for i in $INSTALL_FILES; do
 			if [ -f "$PKGNAME/$i" ]; then
 				mkdir -p $PKGNAME/fs/$INSTALLED/$PACKAGE
