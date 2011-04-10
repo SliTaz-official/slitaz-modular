@@ -15,27 +15,30 @@ if [ "$1" = "" ]; then
    exit 1
 fi
 
-CUR_DIR="$PWD"
+if [ -d "$2" ]; then
+	CUR_DIR="$2"
+else
+	CUR_DIR="$PWD"
+fi
 
 tmp_dir=/tmp/taz2xz-$$
 mkdir -p $tmp_dir
 cd $tmp_dir
 
 tazpkg get $1 || exit 1
-PACKAGE_FILE="$(ls $1*)"
+PACKAGE_FILE="$(find -name "$1-*.tazpkg")"
 { cpio --quiet -i receipt > /dev/null 2>&1; } < $PACKAGE_FILE
 source receipt || exit 1
-tazpkg extract $PACKAGE-$VERSION.tazpkg
+PACKAGE="${PACKAGE}-${VERSION}${EXTRAVERSION}"
+tazpkg extract $PACKAGE.tazpkg
 for i in $INSTALL_FILES; do
-	if [ -f "$PACKAGE-$VERSION/$i" ]; then
-		mkdir -p $PACKAGE-$VERSION/fs/$INSTALLED/$PACKAGE
-		cp -a $PACKAGE-$VERSION/$i $PACKAGE-$VERSION/fs/$INSTALLED/$PACKAGE/$i
+	if [ -f "$PACKAGE/$i" ]; then
+		mkdir -p $PACKAGE/fs/$INSTALLED/$PACKAGE
+		cp -a $PACKAGE/$i $PACKAGE/fs/$INSTALLED/$PACKAGE/$i
 	fi
 done
-if [ -f $CUR_DIR/$PACKAGE-$VERSION.xz ]; then
-	rm -f $CUR_DIR/$PACKAGE-$VERSION.xz
-fi
-create_module $PACKAGE-$VERSION/fs $CUR_DIR/$PACKAGE-$VERSION.xz -comp xz -Xbcj x86
+md5sum $PACKAGE.tazpkg > $PACKAGE/fs/$INSTALLED/$PACKAGE/pkgmd5
+create_module $PACKAGE/fs $CUR_DIR/$PACKAGE.xz -comp xz -Xbcj x86
 
 cd $CUR_DIR
 rm -rf $tmp_dir
