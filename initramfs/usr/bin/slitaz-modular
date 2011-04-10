@@ -233,7 +233,7 @@ create_module()
 	#	fi
 	#fi
 	rm -f "$2" # overwrite, never append to existing file
-	mksquashfs "$1" "$2" -b 256K -nopad -comp $COMPRESSION >/dev/null
+	mksquashfs "$1" "$2" -b 256K -comp $COMPRESSION >/dev/null
 	if [ $? -ne 0 ]; then return 1; fi
 	chmod a-wx "$2" # remove execute and write attrib
 	chmod a+r "$2" # add read for everyone
