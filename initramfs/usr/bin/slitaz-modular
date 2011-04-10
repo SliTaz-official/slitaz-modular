@@ -187,16 +187,18 @@ mktaz2xz()
 	PACKAGE_FILE="$(find -name "$1*.tazpkg")"
 	if [ -f "$PACKAGE_FILE" ]; then
 		{ cpio --quiet -i receipt > /dev/null 2>&1; } < $PACKAGE_FILE
+		unset PKGNAME PACKAGE VERSION EXTRAVERSION
 		source receipt || exit 1
-		tazpkg extract $PACKAGE-$VERSION.tazpkg
+		PKGNAME="${PACKAGE}-${VERSION}${EXTRAVERSION}"
+		tazpkg extract $PACKAGE.tazpkg
 		for i in $INSTALL_FILES; do
-			if [ -f "$PACKAGE-$VERSION/$i" ]; then
-				mkdir -p $PACKAGE-$VERSION/fs/$INSTALLED/$PACKAGE
-				cp -a $PACKAGE-$VERSION/$i $PACKAGE-$VERSION/fs/$INSTALLED/$PACKAGE/$i
+			if [ -f "$PKGNAME/$i" ]; then
+				mkdir -p $PKGNAME/fs/$INSTALLED/$PACKAGE
+				cp -a $PKGNAME/$i $PKGNAME/fs/$INSTALLED/$PACKAGE/$i
 			fi
 		done
-		md5sum $PACKAGE-$VERSION.tazpkg > $PACKAGE-$VERSION/fs/$INSTALLED/$PACKAGE/pkgmd5
-		create_module $PACKAGE-$VERSION/fs $CUR_DIR/$PACKAGE-$VERSION.$EXT /var/lib/tazpkg/installed
+		md5sum $PKGNAME.tazpkg > $PKGNAME/fs/$INSTALLED/$PACKAGE/pkgmd5
+		create_module $PKGNAME/fs $CUR_DIR/$PKGNAME.$EXT /var/lib/tazpkg/installed
 	fi
 }
 
@@ -231,7 +233,7 @@ create_module()
 	#	fi
 	#fi
 	rm -f "$2" # overwrite, never append to existing file
-	mksquashfs "$1" "$2" -b 256K -comp $COMPRESSION >/dev/null
+	mksquashfs "$1" "$2" -b 256K -nopad -comp $COMPRESSION >/dev/null
 	if [ $? -ne 0 ]; then return 1; fi
 	chmod a-wx "$2" # remove execute and write attrib
 	chmod a+r "$2" # add read for everyone
