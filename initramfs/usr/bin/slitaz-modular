@@ -254,8 +254,10 @@ build_modules()
 	
 	touch $SGNFILE
 	
-	[ -f $ISODIR/packages-order.txt ] && rm -f $ISODIR/packages-order.txt
-	touch $ISODIR/packages-order.txt
+	if [ "$CLEAN_MODULES_DIR" = "yes" ]; then
+		[ -f $ISODIR/packages-order.txt ] && rm -f $ISODIR/packages-order.txt
+		touch $ISODIR/packages-order.txt
+	fi
 	
 	if [ "$CLEAN_INITRAMFS" = "yes" ]; then
 		if [ -d ${INITRAMFS} ]; then
@@ -281,6 +283,11 @@ build_modules()
 				if [ ! $(grep "^$d$" $ISODIR/packages-order.txt) ]; then
 					[ -d $MODULES_DIR/$d ] || mkdir -p $MODULES_DIR/$d
 					[ -f $MODULES_DIR/$d/receipt ] && continue
+					if [ "$CLEAN_MODULES_DIR" = "yes" ]; then
+						if [ -d $MODULES_DIR/$d ]; then
+							rm -Rf $MODULES_DIR/$d
+						fi
+					fi
 					info "Make module of depend package $i"
 					echo "$d" >> $ISODIR/packages-order.txt
 					cd $MODULES_DIR/$d
@@ -292,6 +299,11 @@ build_modules()
 		if [ ! $(grep "^$i$" $ISODIR/packages-order.txt) ]; then
 			[ -d $MODULES_DIR/$i ] || mkdir -p $MODULES_DIR/$i
 			[ -f $MODULES_DIR/$i/receipt ] && continue
+			if [ "$CLEAN_MODULES_DIR" = "yes" ]; then
+				if [ -d $MODULES_DIR/$i ]; then
+					rm -Rf $MODULES_DIR/$i
+				fi
+			fi
 			echo "$i" >> $ISODIR/packages-order.txt
 			info "Make module of main package $i"
 			cd $MODULES_DIR/$i
