@@ -110,12 +110,6 @@ initramfs () {
 		exit 1
 	fi
 
-	if [ "$CLEAN_INITRAMFS" = "yes" ]; then
-		if [ -d ${INITRAMFS} ]; then
-			rm -Rf ${INITRAMFS}
-		fi
-	fi
-
 	if [ ! -d ${INITRAMFS} ]; then
 		mkdir -p $INITRAMFS
 	fi
@@ -263,16 +257,22 @@ build_modules()
 	[ -f $ISODIR/packages-order.txt ] && rm -f $ISODIR/packages-order.txt
 	touch $ISODIR/packages-order.txt
 	
-	initramfs
+	if [ "$CLEAN_INITRAMFS" = "yes" ]; then
+		if [ -d ${INITRAMFS} ]; then
+			rm -Rf ${INITRAMFS}
+		fi
+	fi
+	
+	if [ ! -d $INITRAMFS ]; then
+		initramfs
+	fi
 	
 	if [ ! -d $SLITAZ_DIR/repos/wok ]; then
 		hg clone $HG_URL/wok $SLITAZ/repos/wok
 	fi
 	
-	if [ ! -f $INCOMING_REPOSITORY/wok-depends.txt ]; then
-		[ -d $INCOMING_REPOSITORY ] || mkdir -p $INCOMING_REPOSITORY
-		tazwok gen-wok-db --WOK=$SLITAZ_DIR/repos/wok
-	fi
+	[ -d $INCOMING_REPOSITORY ] || mkdir -p $INCOMING_REPOSITORY
+	tazwok gen-wok-db --WOK=$SLITAZ_DIR/repos/wok
 
 	for i in $(cat $PROFILE/packages.list); do
 		look_for_dep $i > /tmp/deps
@@ -281,6 +281,7 @@ build_modules()
 				if [ ! $(grep "^$d$" $ISODIR/packages-order.txt) ]; then
 					[ -d $MODULES_DIR/$d ] || mkdir -p $MODULES_DIR/$d
 					[ -f $MODULES_DIR/$d/receipt ] && continue
+					info "Make module of depend package $i"
 					echo "$d" >> $ISODIR/packages-order.txt
 					cd $MODULES_DIR/$d
 					mktaz2xz $d $ISODIR/$CDNAME/base
@@ -289,9 +290,10 @@ build_modules()
 			done
 		fi
 		if [ ! $(grep "^$i$" $ISODIR/packages-order.txt) ]; then
-			echo "$i" >> $ISODIR/packages-order.txt
 			[ -d $MODULES_DIR/$i ] || mkdir -p $MODULES_DIR/$i
 			[ -f $MODULES_DIR/$i/receipt ] && continue
+			echo "$i" >> $ISODIR/packages-order.txt
+			info "Make module of main package $i"
 			cd $MODULES_DIR/$i
 			mktaz2xz $i $ISODIR/$CDNAME/base
 			cd $PROFILE
