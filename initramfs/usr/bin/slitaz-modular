@@ -176,6 +176,7 @@ copy_hg() {
 mktaz2xz()
 {
 	CUR_DIR="$2"
+	local i
 
 	tazpkg get $1 || exit 1
 	PACKAGE_FILE="$(find -name "$1*.tazpkg")"
