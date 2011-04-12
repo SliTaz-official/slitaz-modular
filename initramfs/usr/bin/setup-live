@@ -8,8 +8,12 @@ if [ -f $PKG_ORDER ]; then
 	echo "Reconfigure packages in $PKG_ORDER"
 	for i in $(cat $PKG_ORDER); do
 		if [ ! -f $INSTALLED/$i/$i.done_post_install ]; then
-			tazpkg reconfigure $i
-			touch $INSTALLED/$i/$i.done_post_install
+			if [ -f $INSTALLED/$i/receipt ]; then
+				if [ $(grep -l '^post_install' $INSTALLED/$i/receipt) ]; then
+					tazpkg reconfigure $i
+					touch $INSTALLED/$i/$i.done_post_install
+				fi
+			fi
 		fi
 		if [ -f $INSTALLED/$i/pkgmd5 ]; then
 			[ -f $INSTALLED/$i/receipt ] && source $INSTALLED/$i/receipt
