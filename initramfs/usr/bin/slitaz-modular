@@ -50,10 +50,7 @@ warn ()  { echo -e "\033[1;33;40m*** \033[1;37;40m$@\033[1;0m"; }
 info () { echo -e "\033[1;32;40m>>> \033[1;37;40m$@\033[1;0m"; }
 
 
-if [ ! -f "$PROFILE/packages.list" ]; then
-	echo "$PROFILE/packages.list doesn't exist."
-	exit 1	
-elif [ ! -f "$PROFILE/config" ]; then
+if [ ! -f "$PROFILE/config" ]; then
 	echo "$PROFILE/config doesn't exist."
 	exit 1	
 fi
@@ -192,6 +189,7 @@ mktaz2xz()
 				cp -a $PKGNAME/$i $PKGNAME/fs/$INSTALLED/$PACKAGE/$i
 			fi
 		done
+		[ -d $CUR_DIR ] || mkdir $CUR_DIR
 		md5sum $PKGNAME.tazpkg > $PKGNAME/fs/$INSTALLED/$PACKAGE/pkgmd5
 		create_module $PKGNAME/fs $CUR_DIR/$PKGNAME.$EXT /var/lib/tazpkg/installed
 	fi
@@ -243,6 +241,46 @@ squashfs_hg() {
 	fi
 }
 
+pkg_flavors_modules()
+{
+	local i
+	for i in $(cat $PROFILE/list/${flavors}.list); do
+		look_for_dep $i > /tmp/deps
+		if [ "$(cat /tmp/deps)" != "" ]; then
+			cat /tmp/deps | while read d; do
+				if [ ! $(grep "^$d$" $ISODIR/packages-order.txt) ]; then
+					[ -d $MODULES_DIR/$d ] || mkdir -p $MODULES_DIR/$d
+					[ -f $MODULES_DIR/$d/receipt ] && continue
+					if [ "$CLEAN_MODULES_DIR" = "yes" ]; then
+						if [ -d $MODULES_DIR/$d ]; then
+							rm -Rf $MODULES_DIR/$d
+						fi
+					fi
+					info "Make module of depend package $i"
+					echo "$d" >> $ISODIR/packages-order.txt
+					cd $MODULES_DIR/$d
+					mktaz2xz $d $ISODIR/$CDNAME/base/$flavors
+					cd $PROFILE
+				fi
+			done
+		fi
+		if [ ! $(grep "^$i$" $ISODIR/packages-order.txt) ]; then
+			[ -d $MODULES_DIR/$i ] || mkdir -p $MODULES_DIR/$i
+			[ -f $MODULES_DIR/$i/receipt ] && continue
+			if [ "$CLEAN_MODULES_DIR" = "yes" ]; then
+				if [ -d $MODULES_DIR/$i ]; then
+					rm -Rf $MODULES_DIR/$i
+				fi
+			fi
+			echo "$i" >> $ISODIR/packages-order.txt
+			info "Make module of main package $i"
+			cd $MODULES_DIR/$i
+			mktaz2xz $i $ISODIR/$CDNAME/base/$flavors
+			cd $PROFILE
+		fi
+	done
+}
+
 build_modules()
 {
 	mkdir -p $WORKING
@@ -271,45 +309,16 @@ build_modules()
 	fi
 	
 	if [ ! -d $SLITAZ_DIR/repos/wok ]; then
-		hg clone $HG_URL/wok $SLITAZ/repos/wok
+		hg clone $HG_URL/wok $SLITAZ_DIR/repos/wok
 	fi
 	
 	[ -d $INCOMING_REPOSITORY ] || mkdir -p $INCOMING_REPOSITORY
 	tazwok gen-wok-db --WOK=$SLITAZ_DIR/repos/wok
 
-	for i in $(cat $PROFILE/packages.list); do
-		look_for_dep $i > /tmp/deps
-		if [ "$(cat /tmp/deps)" != "" ]; then
-			cat /tmp/deps | while read d; do
-				if [ ! $(grep "^$d$" $ISODIR/packages-order.txt) ]; then
-					[ -d $MODULES_DIR/$d ] || mkdir -p $MODULES_DIR/$d
-					[ -f $MODULES_DIR/$d/receipt ] && continue
-					if [ "$CLEAN_MODULES_DIR" = "yes" ]; then
-						if [ -d $MODULES_DIR/$d ]; then
-							rm -Rf $MODULES_DIR/$d
-						fi
-					fi
-					info "Make module of depend package $i"
-					echo "$d" >> $ISODIR/packages-order.txt
-					cd $MODULES_DIR/$d
-					mktaz2xz $d $ISODIR/$CDNAME/base
-					cd $PROFILE
-				fi
-			done
-		fi
-		if [ ! $(grep "^$i$" $ISODIR/packages-order.txt) ]; then
-			[ -d $MODULES_DIR/$i ] || mkdir -p $MODULES_DIR/$i
-			[ -f $MODULES_DIR/$i/receipt ] && continue
-			if [ "$CLEAN_MODULES_DIR" = "yes" ]; then
-				if [ -d $MODULES_DIR/$i ]; then
-					rm -Rf $MODULES_DIR/$i
-				fi
-			fi
-			echo "$i" >> $ISODIR/packages-order.txt
-			info "Make module of main package $i"
-			cd $MODULES_DIR/$i
-			mktaz2xz $i $ISODIR/$CDNAME/base
-			cd $PROFILE
+	local i
+	for flavors in $FLAVORS_LIST; do
+		if [ -f "$PROFILE/list/${flavors}.list" ]; then
+			pkg_flavors_modules
 		fi
 	done
 
