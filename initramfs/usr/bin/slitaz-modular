@@ -55,6 +55,10 @@ if [ ! -f "$PROFILE/config" ]; then
 	exit 1	
 fi
 
+if [ -f ${PROFILE}/config ]; then
+	source ${PROFILE}/config
+fi
+
 cd $PROFILE
 
 lzma_switches()
