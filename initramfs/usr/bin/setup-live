@@ -15,14 +15,4 @@ if [ -f $PKG_ORDER ]; then
 				fi
 			fi
 		fi
-		if [ -f $INSTALLED/$i/pkgmd5 ]; then
-			[ -f $INSTALLED/$i/receipt ] && source $INSTALLED/$i/receipt
-			if [ $(cat $LOCALSTATE/installed.md5 | grep -i " ${PACKAGE}-${VERSION}${EXTRAVERSION}.tazpkg") ]; then
-				sed -i "/ $PACKAGE-$VERSION${EXTRAVERSION}.tazpkg/d" $LOCALSTATE/installed/installed.md5
-				cat $INSTALLED/$i/pkgmd5 >> $LOCALSTATE/installed.md5
-			else
-				cat $INSTALLED/$i/pkgmd5 >> $LOCALSTATE/installed.md5
-			fi
-		fi
-	done
 fi
