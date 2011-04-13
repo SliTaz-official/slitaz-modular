@@ -11,6 +11,7 @@ lzlib
 depmod
 linux
 linux-udf
+slitaz-configs-base
 slitaz-base-files
 slitaz-boot-scripts
 linux-squashfs
