@@ -199,14 +199,6 @@ mktaz2xz()
 	fi
 }
 
-backup_all()
-{
-	if [ "${BACKUP_ALL}" = "yes" ]; then
-		[ -d $SRCISO_DIR ] || ln -sf $SOURCES_REPOSITORY $SRCISO_DIR
-		[ -d $PKGISO_DIR ] || ln -sf $PACKAGES_REPOSITORY $PKGISO_DIR
-	fi
-}
-
 create_module()
 {
    if [ ! -d "$1" ]; then
@@ -229,7 +221,7 @@ create_module()
 	#		fi
 	#	fi
 	#fi
-	rm -f "$2" # overwrite, never append to existing file
+	[ -f "$2" ] && rm -f "$2" # overwrite, never append to existing file
 	mksquashfs "$1" "$2" -b 256K -comp $COMPRESSION >/dev/null
 	if [ $? -ne 0 ]; then return 1; fi
 	chmod a-wx "$2" # remove execute and write attrib
@@ -241,7 +233,8 @@ squashfs_hg() {
 		mkdir -p "$ISODIR/$CDNAME/modules/hg"
 	fi
 	if [ -d ${HG_DIR}/${1}/ ]; then
-		create_module ${HG_DIR}/${1} "$ISODIR/$CDNAME/modules/hg/" /${HG_PATH}/${1}
+		info "Making $ISODIR/$CDNAME/modules/hg/${1}.$EXT module"
+		create_module ${HG_DIR}/${1} $ISODIR/$CDNAME/modules/hg/${1}.$EXT
 	fi
 }
 
@@ -328,6 +321,106 @@ build_modules()
 
 }
 
+backup_pkg() {
+	if [ "${BACKUP_PACKAGES}" = "yes" ]; then
+		[ -d $PKGISO_DIR ] && rm -r $PKGISO_DIR
+		mkdir -p $PKGISO_DIR
+		WOK=${HG_DIR}/wok/home/slitaz/repos/wok
+		info "Making cooking list based installed packages in union"
+		# this is to filter out packages build by get- 
+		# packages that don't exist in repo or wok
+		cat $ISODIR/packages-order.txt | while read pkg; do
+			if [ ! -f $WOK/$pkg/receipt ]; then
+				sed -i "s|$pkg||g" $ISODIR/packages-order.txt
+			fi
+		done
+		tazwok gen-cooklist $ISODIR/packages-order.txt > $ISODIR/cookorder.list
+		[ -f $INCOMING_REPOSITORY/wok-wanted.txt ] || tazwok gen-wok-db
+		
+		CACHE_REPOSITORY="$CACHE_DIR/$(cat /etc/slitaz-release)/packages"
+
+		cat $ISODIR/cookorder.list | grep -v "^#" | while read pkg; do
+			rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
+			pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $PACKAGES_REPOSITORY/packages.txt | \
+				tail -1 | sed 's/ *//')"
+			incoming_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $INCOMING_REPOSITORY/packages.txt | \
+				tail -1 | sed 's/ *//')"
+			for wanted in $rwanted; do
+				if [ -f $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg ]; then
+					ln -sf $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$incoming_pkg_VERSION.tazpkg
+				elif [ -f $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg ]; then
+					ln -sf $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$pkg_VERSION.tazpkg
+				elif [ -f $CACHE_REPOSITORY/$Wanted-$pkg_VERSION.tazpkg ]; then
+					ln -sf $CACHE_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$pkg_VERSION.tazpkg
+				fi
+			done
+		
+			for i in $(ls $WOK/$pkg/receipt); do
+				unset SOURCE TARBALL WANTED PACKAGE VERSION pkg_VERSION COOK_OPT
+				source $i
+				pkg_VERSION="$(grep -m1 -A1 ^$PACKAGE$ $PACKAGES_REPOSITORY/packages.txt | \
+					tail -1 | sed 's/ *//')"
+				incoming_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $INCOMING_REPOSITORY/packages.txt | \
+					tail -1 | sed 's/ *//')"
+				[ "$WGET_URL" ] || continue
+				if [ -f $INCOMING_REPOSITORY/$PACKAGE-$incoming_pkg_VERSION.tazpkg ]; then
+					ln -sf $INCOMING_REPOSITORY/$PACKAGE-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$incoming_pkg_VERSION.tazpkg
+				elif [ -f $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
+					ln -sf $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg
+				elif [ -f $CACHE_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
+					ln -sf $CACHE_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg
+				fi
+			done
+		done
+		
+		[ -d $PKGISO_DIR ] && tazwok gen-list $PKGISO_DIR
+	fi
+	
+}
+
+backup_src() {
+
+	if [ "${BACKUP_PACKAGES}" = "yes" -a "${BACKUP_SOURCES}" = "yes" ]; then
+			[ -d $SOURCES_REPOSITORY ] || mkdir -p $SOURCES_REPOSITORY
+			[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
+			mkdir -p $SRCISO_DIR
+			WOK=${HG_DIR}/wok/home/slitaz/repos/wok
+			cat $ISODIR/cookorder.list | grep -v "^#"| while read pkg; do
+				#rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
+				for i in $(ls $WOK/$pkg/receipt); do
+					unset SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT
+					source $i
+					{ [ ! "$TARBALL" ] || [ ! "$WGET_URL" ] ; } && continue
+					if [ ! -f "$SOURCES_REPOSITORY/$TARBALL" ] && \
+						[ ! -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
+						tazwok get-src $PACKAGE --nounpack
+						if [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
+							ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
+						elif [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
+							ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
+						fi
+					else
+						[ -f "$SOURCES_REPOSITORY/$TARBALL" ] && ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
+						[ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ] && ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
+					fi
+				done
+			done
+			cd $SRCISO_DIR
+			info "Make md5sum file for sources"
+			find * -not -type d | grep -v md5sum | xargs md5sum > md5sum
+			cd $WORKING
+	fi
+	
+}
+
+backup_all()
+{
+	if [ "${BACKUP_ALL}" = "yes" ]; then
+		[ -d $SRCISO_DIR ] || ln -sf $SOURCES_REPOSITORY $SRCISO_DIR
+		[ -d $PKGISO_DIR ] || ln -sf $PACKAGES_REPOSITORY $PKGISO_DIR
+	fi
+}
+
 imgcommon () {
 	
 	build_modules
@@ -339,14 +432,6 @@ imgcommon () {
 				squashfs_hg $hg
 			done
 		fi
-	fi
-
-	if [ "${HG_LIST}" != "" ]; then
-		for hg in ${HG_LIST}; do
-			if [ -d "${MODULES_DIR}/${hg}" ]; then
-				squashfs_hg $hg
-			fi
-		done
 	fi
 	
 	[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
