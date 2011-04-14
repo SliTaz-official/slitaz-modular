@@ -119,7 +119,9 @@ initramfs () {
 	cat "$BASEDIR/initramfs/initramfs.list" | grep -v "^#" | while read pkgname; do
 		if [ ! -f ${INITRAMFS}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
 			tazpkg get-install $pkgname --root=$INITRAMFS | tee -a $LOG/initramfs.log
-			echo "$pkgname" >> $ISODIR/packages-order.txt
+			if [ ! $(grep -l "^${pkgname}$" $ISODIR/packages-order.txt) ]; then
+				echo "$pkgname" >> $ISODIR/packages-order.txt
+			fi
 			sleep 1
 		else
 			info "${pkgname} installed"
@@ -331,7 +333,7 @@ backup_pkg() {
 		# packages that don't exist in repo or wok
 		cat $ISODIR/packages-order.txt | while read pkg; do
 			if [ ! -f $WOK/$pkg/receipt ]; then
-				sed -i "s|$pkg||g" $ISODIR/packages-order.txt
+				sed -i "s|^${pkg}$||g" $ISODIR/packages-order.txt
 			fi
 		done
 		tazwok gen-cooklist $ISODIR/packages-order.txt > $ISODIR/cookorder.list
@@ -483,7 +485,8 @@ make_iso () {
 
 	info "Copying isolinux files..."
 	if [ -d $INITRAMFS/boot/isolinux ]; then
-		mv -f $INITRAMFS/boot/isolinux $ISODIR/boot
+		cp -a $INITRAMFS/boot/isolinux $ISODIR/boot
+		rm -rf $INITRAMFS/boot/isolinux
 	fi
 
 	if [ -d ${PROFILE}/overlay ]; then
