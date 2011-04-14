@@ -10,11 +10,11 @@ a.015.lmms a.016.gimp a.017.virtualbox-ose"
 
 # download local copies of hg repos for iso
 # equals yes or no 
-COPY_HG="yes"
+COPY_HG="no"
 
 # update existing local copies of hg repos for iso in working folder
 # equals yes or no
-UPDATE_HG="yes"
+UPDATE_HG="no"
 
 #HG_URL="https://bitbucket.org/gokhlayeh"
 
@@ -26,5 +26,5 @@ CLEAN_MODULES_DIR="no"
 # equals yes or no
 CLEAN_INITRAMFS="no"
 
-BACKUP_PACKAGES="yes"
-BACKUP_SOURCES="yes"
+BACKUP_PACKAGES="no"
+BACKUP_SOURCES="no"
