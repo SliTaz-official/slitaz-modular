@@ -11,6 +11,15 @@ lzlib
 depmod
 linux
 linux-udf
+attr
+libcap
+gettext-base
+bzlib
+lzma
+cdrkit
+libtaz
+tazpkg
+tazlito
 slitaz-configs-base
 slitaz-base-files
 slitaz-boot-scripts
