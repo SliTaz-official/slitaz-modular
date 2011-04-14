@@ -1,7 +1,7 @@
 
 # names of modular package lists
 # equals names of .list files in the order to build
-FLAVORS_LIST="a.000.base a.001.justx a.002.core-basic"
+FLAVORS_LIST="a.000.base a.001.justx a.002.core-basic a.003.server"
 
 # download local copies of hg repos for iso
 # equals yes or no 

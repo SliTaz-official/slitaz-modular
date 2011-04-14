@@ -6,6 +6,7 @@ PATH=.:$(dirname $0):/usr/lib:$PATH
 . /etc/slitaz/slitaz.conf
 
 INSTALL_FILES="receipt files.list md5sum volatile.cpio.gz"
+INCOMING_REPOSITORY="$SLITAZ_DIR/$SLITAZ_VERSION/packages-incoming"
 
 if [ "$1" = "" ]; then
    echo
@@ -20,6 +21,12 @@ else
 	CUR_DIR="$PWD"
 fi
 
+
+look_for_dep()
+{
+		grep -m1 ^$1$'\t' $INCOMING_REPOSITORY/wok-depends.txt | cut -f 2 | sed 's|^[ \t]*||g' | sed 's| |\n|g'
+}
+
 tmp_dir=/tmp/taz2xz-$$
 mkdir -p $tmp_dir
 cd $tmp_dir
@@ -27,6 +34,7 @@ cd $tmp_dir
 tazpkg get $1 || exit 1
 PACKAGE_FILE="$(find -name "$1-*.tazpkg")"
 { cpio --quiet -i receipt > /dev/null 2>&1; } < $PACKAGE_FILE
+unset PKGNAME PACKAGE VERSION EXTRAVERSION
 source receipt || exit 1
 PKGNAME="${PACKAGE}-${VERSION}${EXTRAVERSION}"
 tazpkg extract $PKGNAME.tazpkg

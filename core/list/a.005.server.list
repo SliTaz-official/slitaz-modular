@@ -37,3 +37,4 @@ dnsmasq
 dhcp
 dhcp-relay
 dhcp-client
+pwgen

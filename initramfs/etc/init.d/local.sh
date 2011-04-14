@@ -43,9 +43,10 @@ PKG_ORDER="$(find /mnt/live/mnt/* -name "packages-order.txt" -maxdepth 1)"
 if [ -f $PKG_ORDER ]; then
 	for i in $(cat $PKG_ORDER); do
 		if [ -f $INSTALLED/$i/pkgmd5 ]; then
+			unset PACKAGE VERSION EXTRAVERSION
 			[ -f $INSTALLED/$i/receipt ] && source $INSTALLED/$i/receipt
 			if [ $(cat $LOCALSTATE/installed.md5 | grep -i " ${PACKAGE}-${VERSION}${EXTRAVERSION}.tazpkg") ]; then
-				sed -i "/ $PACKAGE-$VERSION${EXTRAVERSION}.tazpkg/d" $LOCALSTATE/installed/installed.md5
+				sed -i "/ $PACKAGE-$VERSION${EXTRAVERSION}.tazpkg/d" $LOCALSTATE/installed.md5
 				cat $INSTALLED/$i/pkgmd5 >> $LOCALSTATE/installed.md5
 			else
 				cat $INSTALLED/$i/pkgmd5 >> $LOCALSTATE/installed.md5

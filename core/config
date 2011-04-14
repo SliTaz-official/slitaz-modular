@@ -2,15 +2,19 @@
 # names of modular package lists
 # equals names of .list files in the order to build
 #MODULES="a.000.base a.001.justx a.002.core-basic a.003.core a.004.firefox a.005.core-xfce"
-MODULES="a.000.base a.001.justx a.002.core-basic a.003.core a.004.firefox a.005.server a.006.mesa a.007.xorg-xf86-video a.008.libs a.009.apps a.010.frozen-bubble a.011.warzone2100 a.012.celestia"
+BASE_MODULES="a.000.base a.001.justx a.002.core-basic a.003.core a.004.firefox \
+a.005.server"
+MODULES="a.006.mesa a.007.xorg-xf86-video a.008.cmdline a.009.libs a.010.apps \
+a.011.frozen-bubble a.012.celestia a.013.warzone2100 a.014.blender \
+a.015.lmms a.016.gimp a.017.virtualbox-ose"
 
 # download local copies of hg repos for iso
 # equals yes or no 
-COPY_HG="no"
+COPY_HG="yes"
 
 # update existing local copies of hg repos for iso in working folder
 # equals yes or no
-UPDATE_HG="no"
+UPDATE_HG="yes"
 
 #HG_URL="https://bitbucket.org/gokhlayeh"
 
@@ -22,3 +26,5 @@ CLEAN_MODULES_DIR="no"
 # equals yes or no
 CLEAN_INITRAMFS="no"
 
+BACKUP_PACKAGES="yes"
+BACKUP_SOURCES="yes"
