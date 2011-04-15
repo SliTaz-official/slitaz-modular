@@ -4,7 +4,7 @@
 
 BASEDIR="$LOCAL_REPOSITORY/slitaz-modular"
 PROFILE="$BASEDIR/$1"
-WORKING="$BASEDIR/working"
+WORKING="$PROFILE/working"
 CDNAME="slitaz"
 QUIET="y"
 FORCE="y"
@@ -243,7 +243,7 @@ squashfs_hg() {
 pkg_flavors_modules()
 {
 	local i
-	for i in $(cat $PROFILE/list/${flavors}.list); do
+	cat "$PROFILE/list/${flavors}.list" | grep -v "^#" | while read i; do
 		look_for_dep $i > /tmp/deps
 		if [ "$(cat /tmp/deps)" != "" ]; then
 			cat /tmp/deps | while read d; do
@@ -254,11 +254,12 @@ pkg_flavors_modules()
 						if [ -d $MODULES_DIR/$d ]; then
 							rm -Rf $MODULES_DIR/$d
 						fi
+						[ -f $LOG/$d.log ] && rm -f $LOG/$d.log
 					fi
-					info "Make module of depend package $i"
+					info "Make module of depend package $d" | tee -a $LOG/$d.log
 					echo "$d" >> $ISODIR/packages-order.txt
 					cd $MODULES_DIR/$d
-					mktaz2xz $d $ISODIR/$CDNAME/base/$flavors
+					mktaz2xz $d $ISODIR/$CDNAME/base/$flavors | tee -a $LOG/$d.log
 					cd $PROFILE
 				fi
 			done
@@ -270,9 +271,10 @@ pkg_flavors_modules()
 				if [ -d $MODULES_DIR/$i ]; then
 					rm -Rf $MODULES_DIR/$i
 				fi
+				[ -f $LOG/$i.log ] && rm -f $LOG/$i.log
 			fi
 			echo "$i" >> $ISODIR/packages-order.txt
-			info "Make module of main package $i"
+			info "Make module of main package $i" 
 			cd $MODULES_DIR/$i
 			mktaz2xz $i $ISODIR/$CDNAME/base/$flavors
 			cd $PROFILE
