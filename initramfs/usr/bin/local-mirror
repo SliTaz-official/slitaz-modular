@@ -3,6 +3,7 @@
 source /usr/lib/slitaz/libtaz
 source_lib commons
 check_root
+. /etc/slitaz/slitaz.conf
 
 . /etc/local-mirror.conf
 
@@ -79,8 +80,8 @@ www() {
 			[ -d $REPOS_DIR/flavors-stable ] && ln -sf $REPOS_DIR/flavors-stable $STABLE/flavors
 			[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
 			[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
-			[ -d $PKGDIR ] && ln -sf $PKGDIR /home/slitaz/$(cat /etc/slitaz-release)/packages
-			[ -d $SRCDIR ] && ln -sf $SRCDIR /home/slitaz/$(cat /etc/slitaz-release)/src
+			[ -d $PKGDIR ] && ln -sf $PKGDIR $LOCAL_REPOSITORY/packages
+			[ -d $SRCDIR ] && ln -sf $SRCDIR $LOCAL_REPOSITORY/src
 		;;
 		mirror)
 			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info $MAIN_WWW_DIR
@@ -162,7 +163,9 @@ repos() {
 			[ "$repo" = "slitaz-modular" ] && echo "contact = Christopher Rogers" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-pizza" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-tools" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "slitaz-vz" ] && echo "contact = Eric Joseph-Alexandre" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazlito" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "tazpanel" ] && echo "contact = Christophe Lincoln" >> $REPO_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazpkg" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazusb" ] && echo "contact = Eric Joseph-Alexandre" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazwok" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
@@ -186,10 +189,12 @@ repos() {
 			[ "$repo" = "slitaz-modular" ] && echo "description = Scripts to make SliTaz Modular" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-pizza" ] && echo "description = SliTaz Online flavor builder" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-tools" ] && echo "description = SliTaz Tools and Tinyutils" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "slitaz-vz" ] && echo "description = SliTaz OpenVZ integration" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazlito" ] && echo "description = SliTaz Live Tool" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "tazpanel" ] && echo "description = Slitaz Administration Panel" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazpkg" ] && echo "description = SliTaz Packages manager" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazusb" ] && echo "description = SliTaz LiveUSB utility" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazwok" ] && echo "description = Slitaz Packages builder" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "tazwok" ] && echo "description = SliTaz Packages builder" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "website" ] && echo "description = SliTaz Website" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "wok" ] && echo "description = SliTaz Cooking wok" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "wok-stable" ] && echo "description = SliTaz Stable wok" >> $REPOS_DIR/$repo/.hg/hgrc
@@ -227,7 +232,7 @@ case "$COMMAND" in
 		else
 			[ -f $VHOST_FILE ] && ln -sf $VHOST_FILE /etc/lighttpd/vhosts.conf
 		fi
-		chown -R www.www /home/slitaz/www
+		chown -R www.www $SLITAZ_DIR/www
 		[ -f /etc/init.d/lighttpd ] && /etc/init.d/lighttpd start
 		;;
 	update-repos)
