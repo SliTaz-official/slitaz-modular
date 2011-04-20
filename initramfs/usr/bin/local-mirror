@@ -16,6 +16,20 @@ usage() {
 	exit 1 
 }
 
+COOKORDER="$(find /mnt/live/mnt/* -name "cookorder.list" -maxdepth 1)"
+CUR_PWD="$PWD"
+
+if [ -d $REPOS_DIR/my-wok ]; then
+	REPO_WOK=$REPOS_DIR/my-wok
+	if [ -x /usr/bin/hg ]; then
+		cd $REPO_WOK
+		hg update cooking
+		cd $CUR_PWD
+	fi
+elif [ -d $REPOS_DIR/wok ]; then
+	REPO_WOK=$REPOS_DIR/wok
+fi
+
 if [ "$COMMAND" = "tank-only" ]; then
 	WWW="${WWW/mirror/}"
 	ADDRESS="${ADDRESS/mirror.slitaz.org/}"
@@ -31,6 +45,8 @@ fi
 [ -d $REPOS_DIR ] || continue
 [ -d $MAIN_WWW_DIR ] || mkdir -p $MAIN_WWW_DIR
 [ -L /var/www/vhosts ] || ln -sf $MAIN_WWW_DIR /var/www/vhosts
+
+INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
 
 www() {
 	b=$1
@@ -59,11 +75,34 @@ www() {
 			[ -d /usr/share/slitaz/web-bb ] && cp -a /usr/share/slitaz/web-bb $MAIN_WWW_DIR/bb
 			#[ -d /usr/share/slitaz/web ] && cp -a /usr/share/slitaz/web $MAIN_WWW_DIR/bb/web
 			[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $MAIN_WWW_DIR/bb/pics
-			[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
-			[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/wok
-			[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
+			[ -d $INCOMING_REPOSITORY ] || mkdir -p $INCOMING_REPOSITORY
+			[ -f $INCOMING_REPOSITORY/packages.desc ] || touch $INCOMING_REPOSITORY/packages.desc
+			[ -f $INCOMING_REPOSITORY/packages.equiv ] || touch $INCOMING_REPOSITORY/packages.equiv
+			[ -f $INCOMING_REPOSITORY/packages.list ] || touch $INCOMING_REPOSITORY/packages.list
+			[ -f $INCOMING_REPOSITORY/packages.md5 ] || touch $INCOMING_REPOSITORY/packages.md5
+			[ -f $INCOMING_REPOSITORY/packages.txt ] || touch $INCOMING_REPOSITORY/packages.txt
+			tazwok gen-wok-db --WOK=$REPO_WOK
+			if [ -f $COOKORDER ]; then
+				[ -d $COOKING/wok ] || mkdir -p $COOKING/wok
+				[ -d $COOKING/clean-wok ] || mkdir -p $COOKING/clean-wok
+				cat $COOKORDER | while read pkg; do
+					rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
+					for i in $rwanted; do
+						[ -f $COOKING/clean-wok/$i/receipt ] || cp -a $REPO_WOK/$i $COOKING/clean-wok/$i
+						[ -f $COOKING/wok/$i/receipt ] || cp -a $REPO_WOK/$i $COOKING/wok/$i
+					done
+					[ -f $COOKING/clean-wok/$pkg/receipt ] || cp -a $REPO_WOK/$pkg $COOKING/clean-wok/$pkg
+					[ -f $COOKING/wok/$pkg/receipt ] || cp -a $REPO_WOK/$pkg $COOKING/wok/$pkg
+				done
+				unset i
+				tazwok gen-wok-db --WOK=$COOKING/clean-wok
+			else
+				[ -d $COOKING/clean-wok ] || ln -sf $REPO_WOK $COOKING/clean-wok
+				[ -d $COOKING/wok ] || ln -sf $REPO_WOK $COOKING/wok
+			fi
+			[ -d $STABLE/clean-wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
 			[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/wok
-			[ -f $SRCDIR/sources.list ] || tazwok gen-src $SRCDIR
+			[ -f $SRCDIR/sources.list ] || tazwok gen-src $SRCDIR --WOK=$REPO_WOK
 			[ -d $REPOS_DIR/slitaz-modular ] && ln -sf $REPOS_DIR/slitaz-modular $COOKING/slitaz-modular
 			echo -e "$MAIN_WWW_DIR/bb" | tazwok webserver on
 		;;
@@ -78,8 +117,8 @@ www() {
 			[ -d $STABLE ] || mkdir -p $STABLE
 			[ -d $REPOS_DIR/flavors ] && ln -sf $REPOS_DIR/flavors $COOKING/flavors
 			[ -d $REPOS_DIR/flavors-stable ] && ln -sf $REPOS_DIR/flavors-stable $STABLE/flavors
-			[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
-			[ -d $STABLE/wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
+			#[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
+			[ -d $STABLE/clean-wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
 			[ -d $PKGDIR ] && ln -sf $PKGDIR $LOCAL_REPOSITORY/packages
 			[ -d $SRCDIR ] && ln -sf $SRCDIR $LOCAL_REPOSITORY/src
 		;;
@@ -93,6 +132,7 @@ www() {
 					[ -d $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1} ] || mkdir -p $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}
 					[ -f $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i ] || ln -s $SRCDIR/$i $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i
 				done
+				unset i
 			fi
 			[ -d /var/www/slitaz ] || ln -sf $MAIN_WWW_DIR/slitaz /var/www/slitaz
 		;;
@@ -165,7 +205,7 @@ repos() {
 			[ "$repo" = "slitaz-tools" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-vz" ] && echo "contact = Eric Joseph-Alexandre" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazlito" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazpanel" ] && echo "contact = Christophe Lincoln" >> $REPO_DIR/$repo/.hg/hgrc
+			[ "$repo" = "tazpanel" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazpkg" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazusb" ] && echo "contact = Eric Joseph-Alexandre" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazwok" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
