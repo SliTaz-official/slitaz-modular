@@ -21,5 +21,17 @@ abiword
 gnumeric
 xchm
 lxterminal
+gimp
+gimp-console
+gimp-plug-ins
+gnome-mplayer
+transmission-gtk
+deluge
+seamonkey
+wireshark
+ghostscript
+hplip
+xsane
+smplayer
 # other-apps
 uget

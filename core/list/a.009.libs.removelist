@@ -21,6 +21,18 @@ abiword
 gnumeric
 xchm
 lxterminal
+gimp
+gimp-console
+gimp-plug-ins
+gnome-mplayer
+transmission-gtk
+deluge
+seamonkey
+wireshark
+ghostscript
+hplip
+xsane
+smplayer
 #modular-apps
 celestia
 frozen-bubble
@@ -28,6 +40,3 @@ warzone2100
 virtualbox-ose
 lmms
 blender
-gimp
-gimp-console
-gimp-plug-ins

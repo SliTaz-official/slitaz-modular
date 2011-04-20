@@ -38,3 +38,12 @@ dhcp
 dhcp-relay
 dhcp-client
 pwgen
+bazaar
+bazaar-tools
+bogofilter
+icecast
+rsync
+openssl
+whois
+pure-ftpd
+tightvnc

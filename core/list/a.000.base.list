@@ -1,5 +1,4 @@
 busybox
-bash
 bzlib
 dialog
 dropbear
@@ -12,7 +11,6 @@ isapnptools
 kbd-busybox
 libcap
 linux
-linux-drm
 lzlib
 lzma
 pcmciautils
@@ -24,6 +22,7 @@ slitaz-tools
 sysfsutils
 syslinux
 syslinux-extra
+tazchroot
 tazlito
 tazpkg
 tazusb
@@ -31,5 +30,3 @@ tazwok
 udev
 zlib
 ncurses-common
-linux-firmware
-aufs-utils
