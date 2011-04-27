@@ -142,6 +142,7 @@ initramfs () {
 	fi
 
 	info "Making bootable image"
+	[ -f $LOG/initramfs.log ] && rm -f $LOG/initramfs.log
 	cat "$BASEDIR/initramfs/initramfs.list" | grep -v "^#" | while read pkgname; do
 		if [ ! -f ${INITRAMFS}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
 			tazpkg get-install $pkgname --root=$INITRAMFS | tee -a $LOG/initramfs.log
@@ -214,6 +215,7 @@ slitaz_union () {
 		echo "${mod} module exist. Moving on."
 	elif [ ! -d ${MODULES_DIR}/${mod}/var/lib/tazpkg/installed ]; then
 		if [ -f "$PROFILE/list/${mod}.list" ]; then
+			[ -f ${LOG}/${mod}-current.log ] && rm -f ${LOG}/${mod}-current.log
 			cat "$PROFILE/list/${mod}.list" | grep -v "^#" | while read pkgname; do
 				if [ ! -f ${UNION}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
 					tazpkg get-install $pkgname --root=${UNION} | tee -a ${LOG}/${mod}-current.log
@@ -225,9 +227,10 @@ slitaz_union () {
 		fi
 
 		if [ -f $PROFILE/list/${mod}.removelist ]; then
+			[ -f ${LOG}/${mod}-current-removelist.log ] && rm -f ${LOG}/${mod}-current-removelist.log
 			cat "$PROFILE/list/${mod}.removelist" | grep -v "^#" | while read pkgname; do
 				if [ -f ${UNION}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
-					echo "y" | tazpkg remove ${pkgname} --root=${UNION} | tee -a ${LOG}/${mod}-current.log
+					echo "y" | tazpkg remove ${pkgname} --root=${UNION} | tee -a ${LOG}/${mod}-current-removelist.log
 					sleep 1
 				else
 					info "${pkgname} removed"
@@ -359,7 +362,8 @@ backup_pkg() {
 			done
 		done
 		
-		[ -d $PKGISO_DIR ] && tazwok gen-list $PKGISO_DIR
+		[ -f $LOG/packages-gen-list.log ] && rm -f $LOG/packages-gen-list.log
+		[ -d $PKGISO_DIR ] && tazwok gen-list $PKGISO_DIR | tee -a $LOG/packages-gen-list.log
 	fi
 	
 }
