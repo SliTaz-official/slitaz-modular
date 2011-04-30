@@ -2,11 +2,12 @@
 # names of modular package lists
 # equals names of .list files in the order to build
 #MODULES="a.000.base a.001.justx a.002.core-basic a.003.core a.004.firefox a.005.core-xfce"
-BASE_MODULES="a.000.base a.001.justx a.002.core-basic a.003.core a.004.firefox \
-a.005.server"
-MODULES="a.006.mesa a.007.xorg-xf86-video a.008.cmdline a.009.libs a.010.apps \
-a.011.frozen-bubble a.012.celestia a.013.warzone2100 a.014.blender \
-a.015.lmms a.016.gimp a.017.virtualbox-ose"
+BASE_MODULES="a.001.core a.002.firefox a.003.server"
+MODULES="a.004.thunderbird a.005.xorg-extra a.006.cmdline a.007.libs a.008.xfce a.009.apps \
+a.010.frozen-bubble a.011.celestia a.012.warzone2100 a.013.blender \
+a.014.virtualbox-ose a.015.clamav a.016.freeciv a.017.btanks \
+a.018.prboom a.019.openttd a.020.lincity-ng a.021.assaultcube \
+a.022.scribus a.023.java-jre a.024.emacs a.025.openshot a.026.mono"
 
 # download local copies of hg repos for iso
 # equals yes or no 
