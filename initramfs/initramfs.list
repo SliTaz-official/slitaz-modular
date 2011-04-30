@@ -25,6 +25,7 @@ slitaz-base-files
 slitaz-boot-scripts
 linux-squashfs
 aufs
+aufs-utils
 module-init-tools
 util-linux-ng-uuid
 util-linux-ng-blkid
