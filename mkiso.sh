@@ -34,7 +34,7 @@ SGNFILE="$ISODIR/$CDNAME/livecd.sgn"
 MODULES_DIR="$WORKING/modules"
 HG_DIR="$WORKING/hg"
 HG_URL="http://hg.slitaz.org"
-HG_PATH="home/slitaz/repos"
+HG_PATH="repos"
 COPY_HG="no"
 UPDATE_HG="no"
 BACKUP_SOURCES="no"
@@ -157,13 +157,16 @@ initramfs () {
 	fi
 
 	#if [ ! -f $ISODIR/boot/bzImage ]; then
+	if [ -f $INITRAMFS/boot/vmlinuz* ]; then
 		cp -a $INITRAMFS/boot/vmlinuz* $ISODIR/boot/bzImage
 		rm -f $INITRAMFS/boot/vmlinuz*
-		if [ -f $INITRAMFS/boot/gpxe ]; then
-			cp -a $INITRAMFS/boot/gpxe $ISODIR/boot/gpxe
-			rm -f $INITRAMFS/boot/gpxe
-		fi
-	#fi
+	fi
+	
+	if [ -f $INITRAMFS/boot/gpxe ]; then
+		cp -a $INITRAMFS/boot/gpxe $ISODIR/boot/gpxe
+		rm -f $INITRAMFS/boot/gpxe
+	fi
+	
 	if [ -d $BASEDIR/initramfs ]; then
 		for i in $KEY_FILES; do
 			if [ -f $BASEDIR/initramfs/$i ]; then
@@ -324,7 +327,7 @@ backup_pkg() {
 			fi
 		done
 		tazwok gen-cooklist $ISODIR/packages-installed.list > $ISODIR/cookorder.list
-		[ -f $INCOMING_REPOSITORY/wok-wanted.txt ] || tazwok gen-wok-db
+		[ -f $INCOMING_REPOSITORY/wok-wanted.txt ] || tazwok gen-wok-db --WOK=$WOK
 		
 		CACHE_REPOSITORY="$CACHE_DIR/$(cat /etc/slitaz-release)/packages"
 
@@ -478,28 +481,30 @@ imgcommon () {
 	fi
 	
 	if [ "$MY_HG_LIST" != "" ]; then
-		for my_hg in $MY_HG_LIST; do
-			HG_URL="$MY_HG_URL"
-			copy_hg $my_hg
-			WOK=${HG_DIR}/my-wok/home/slitaz/repos/my-wok
-			if [ -d $WOK/.hg ]; then
-				cd $WOK
-				hg update cooking
-				cd $PROFILE
-			fi
-			squashfs_hg $my_hg
-		done
+		if [ "$COPY_HG" = "yes" ]; then
+			for my_hg in $MY_HG_LIST; do
+				HG_URL="$MY_HG_URL"
+				copy_hg $my_hg
+				WOK=${HG_DIR}/my-wok/repos/my-wok
+				if [ -d $WOK/.hg ]; then
+					cd $WOK
+					hg update cooking
+					cd $PROFILE
+				fi
+				squashfs_hg $my_hg
+			done
+		fi
 	fi
 
 	[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
 	[ -d $PKGISO_DIR ] && rm -r $PKGISO_DIR
 	
-	if [ -d ${HG_DIR}/my-wok/home/slitaz/repos/my-wok/.hg ]; then
-		WOK=${HG_DIR}/my-wok/home/slitaz/repos/my-wok
+	if [ -d ${HG_DIR}/my-wok/repos/my-wok/.hg ]; then
+		WOK=${HG_DIR}/my-wok/repos/my-wok
 		backup_pkg
 		backup_src
-	elif [ -d ${HG_DIR}/wok/home/slitaz/repos/wok/.hg ]; then
-		WOK=${HG_DIR}/wok/home/slitaz/repos/wok
+	elif [ -d ${HG_DIR}/wok/repos/wok/.hg ]; then
+		WOK=${HG_DIR}/wok/repos/wok
 		backup_pkg
 		backup_src
 	fi
@@ -566,10 +571,10 @@ make_iso () {
 	sed -i "s|$PROFILE/||g" $IMGMD5NAME
 }
 
-if [ "$MODULES" != "" ]; then
+if [ "$BASE_MODULES" != "" ]; then
 	union
 else
-	error "MODULES was empty. exiting."
+	error "BASE_MODULES was empty. exiting."
 	exit 1
 fi
 
