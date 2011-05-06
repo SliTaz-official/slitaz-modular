@@ -488,7 +488,9 @@ imgcommon () {
 				WOK=${HG_DIR}/my-wok/repos/my-wok
 				if [ -d $WOK/.hg ]; then
 					cd $WOK
-					hg update cooking
+					if [ "$(hg branch)" != "cooking" ]; then
+						hg update cooking
+					fi
 					cd $PROFILE
 				fi
 				squashfs_hg $my_hg
