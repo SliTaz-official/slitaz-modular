@@ -19,11 +19,30 @@ usage() {
 COOKORDER="$(find /mnt/live/mnt/* -name "cookorder.list" -maxdepth 1)"
 CUR_PWD="$PWD"
 
+[ -d $SLITAZ_DIR ] || mkdir -p $SLITAZ_DIR
+if [ "$(cat /proc/cmdline | grep 'home=')" ]; then
+	[ -d $SLITAZ_DIR/repos ] || cp -a $REPOS_DIR $SLITAZ_DIR/repos
+	rm -rf $REPOS_DIR
+else
+	[ -d $SLITAZ_DIR/repos ] || ln -sf $REPOS_DIR $SLITAZ_DIR/repos
+fi
+
+[ -d $SLITAZ_DIR/repos ] && REPOS_DIR="$SLITAZ_DIR/repos"
+
+#repos folders for website
+PEOPLE_WWW_DIR="$REPOS_DIR/slitaz-forge/people"
+DOC_WWW_DIR="$REPOS_DIR/slitaz-forge/doc"
+PIZZA_WWW_DIR="$REPOS_DIR/slitaz-pizza/php"
+BOOT_WWW_DIR="$REPOS_DIR/slitaz-forge/boot"
+TANK_WWW_DIR="$REPOS_DIR/slitaz-forge/tank/web"
+
 if [ -d $REPOS_DIR/my-wok ]; then
 	REPO_WOK=$REPOS_DIR/my-wok
 	if [ -x /usr/bin/hg ]; then
 		cd $REPO_WOK
-		hg update cooking
+		if [ ! "$(hg branch)" = "cooking" ]; then
+			hg update cooking
+		fi
 		cd $CUR_PWD
 	fi
 elif [ -d $REPOS_DIR/wok ]; then
@@ -47,12 +66,22 @@ fi
 [ -L /var/www/vhosts ] || ln -sf $MAIN_WWW_DIR /var/www/vhosts
 
 INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
+CRON_FILE="/var/spool/cron/crontabs/root"
+
+[ -d $(dirname $CRON_FILE) ] || mkdir -p $(dirname $CRON_FILE)
+[ -f $CRON_FILE ] || touch $CRON_FILE
 
 www() {
 	b=$1
 	case "$b" in
 		website)
 			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $MAIN_WWW_DIR
+			if [ -f $MAIN_WWW_DIR/$b/libs/get-latest.sh ]; then
+				if [ ! $(grep -l "$MAIN_WWW_DIR/$b/libs/get-latest.sh" $CRON_FILE) ]; then
+					echo "#Update SliTaz stuff" >> $CRON_FILE
+					echo "*/20 * * * * $MAIN_WWW_DIR/$b/libs/get-latest.sh" >> $CRON_FILE
+				fi
+			fi
 		;;
 		people)
 			[ -d $REPOS_DIR/slitaz-forge/people ] && ln -s $REPOS_DIR/slitaz-forge/people $MAIN_WWW_DIR/people
@@ -60,7 +89,7 @@ www() {
 		doc)
 			[ -d $DOC_WWW_DIR ] && cp -a $DOC_WWW_DIR $MAIN_WWW_DIR/doc
 			[ -d /var/www/dokuwiki ] && cp -a /var/www/dokuwiki/* $MAIN_WWW_DIR/doc
-			VAR="index media pages"
+			VAR="index meta media pages"
 			for i in $VAR; do
 				[ -d $REPOS_DIR/slitaz-doc-wiki-data ] && cp -a $REPOS_DIR/slitaz-doc-wiki-data/$i $MAIN_WWW_DIR/doc/data
 			done
@@ -68,34 +97,44 @@ www() {
 			chown root.root -R $MAIN_WWW_DIR/doc
 			chmod 777 -R $MAIN_WWW_DIR/doc
 		;;
+		bugs)
+			[ -d $SLITAZ_DIR/bugs ] || mkdir -p $SLITAZ_DIR/bugs
+			[ -d $MAIN_WWW_DIR/bugs ] || mkdir -p $MAIN_WWW_DIR/bugs
+			[ -d $REPOS_DIR/slitaz-forge/bugs ] && cp -a $REPOS_DIR/slitaz-forge/bugs/roundup.wsgi $SLITAZ_DIR/bugs/roundup.wsgi
+			[ -d $REPOS_DIR/slitaz-forge/bugs ] && cp -a $REPOS_DIR/slitaz-forge/bugs/server.ini $SLITAZ_DIR/bugs/server.ini
+			[ -d $REPOS_DIR/slitaz-forge/bugs/templates/slitaz ] && cp -a $REPOS_DIR/slitaz-forge/bugs/templates/slitaz/* $SLITAZ_DIR/bugs
+			[ -f /usr/share/roundup/cgi-bin/roundup.cgi ] && ln -sf /usr/share/roundup/cgi-bin/roundup.cgi $MAIN_WWW_DIR/bugs/roundup.cgi
+		;;
 		pizza)
 			[ -d $PIZZA_WWW_DIR ] && ln -sf $PIZZA_WWW_DIR $MAIN_WWW_DIR/pizza
 		;;
 		bb)
 			[ -d /usr/share/slitaz/web-bb ] && cp -a /usr/share/slitaz/web-bb $MAIN_WWW_DIR/bb
 			#[ -d /usr/share/slitaz/web ] && cp -a /usr/share/slitaz/web $MAIN_WWW_DIR/bb/web
-			[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $MAIN_WWW_DIR/bb/pics
+			[ -d $REPOS_DIR/website/images ] && ln -sf $REPOS_DIR/website/images $MAIN_WWW_DIR/bb/images
 			[ -d $INCOMING_REPOSITORY ] || mkdir -p $INCOMING_REPOSITORY
 			[ -f $INCOMING_REPOSITORY/packages.desc ] || touch $INCOMING_REPOSITORY/packages.desc
 			[ -f $INCOMING_REPOSITORY/packages.equiv ] || touch $INCOMING_REPOSITORY/packages.equiv
 			[ -f $INCOMING_REPOSITORY/packages.list ] || touch $INCOMING_REPOSITORY/packages.list
 			[ -f $INCOMING_REPOSITORY/packages.md5 ] || touch $INCOMING_REPOSITORY/packages.md5
 			[ -f $INCOMING_REPOSITORY/packages.txt ] || touch $INCOMING_REPOSITORY/packages.txt
-			tazwok gen-wok-db --WOK=$REPO_WOK
-			if [ -f $COOKORDER ]; then
-				[ -d $COOKING/wok ] || mkdir -p $COOKING/wok
-				[ -d $COOKING/clean-wok ] || mkdir -p $COOKING/clean-wok
-				cat $COOKORDER | while read pkg; do
-					rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
-					for i in $rwanted; do
-						[ -f $COOKING/clean-wok/$i/receipt ] || cp -a $REPO_WOK/$i $COOKING/clean-wok/$i
-						[ -f $COOKING/wok/$i/receipt ] || cp -a $REPO_WOK/$i $COOKING/wok/$i
+			if [ "$CUSTOM_WOK" = "yes" ]; then
+				tazwok gen-wok-db --WOK=$REPO_WOK
+				if [ -f $COOKORDER ]; then
+					[ -d $COOKING/wok ] || mkdir -p $COOKING/wok
+					[ -d $COOKING/clean-wok ] || mkdir -p $COOKING/clean-wok
+					cat $COOKORDER | while read pkg; do
+						rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
+						for i in $rwanted; do
+							[ -f $COOKING/clean-wok/$i/receipt ] || cp -a $REPO_WOK/$i $COOKING/clean-wok/$i
+							[ -f $COOKING/wok/$i/receipt ] || cp -a $REPO_WOK/$i $COOKING/wok/$i
+						done
+						[ -f $COOKING/clean-wok/$pkg/receipt ] || cp -a $REPO_WOK/$pkg $COOKING/clean-wok/$pkg
+						[ -f $COOKING/wok/$pkg/receipt ] || cp -a $REPO_WOK/$pkg $COOKING/wok/$pkg
 					done
-					[ -f $COOKING/clean-wok/$pkg/receipt ] || cp -a $REPO_WOK/$pkg $COOKING/clean-wok/$pkg
-					[ -f $COOKING/wok/$pkg/receipt ] || cp -a $REPO_WOK/$pkg $COOKING/wok/$pkg
-				done
-				unset i
-				tazwok gen-wok-db --WOK=$COOKING/clean-wok
+					unset i
+					tazwok gen-wok-db --WOK=$COOKING/clean-wok
+				fi
 			else
 				[ -d $COOKING/clean-wok ] || ln -sf $REPO_WOK $COOKING/clean-wok
 				[ -d $COOKING/wok ] || ln -sf $REPO_WOK $COOKING/wok
@@ -138,7 +177,7 @@ www() {
 		;;
 		boot)
 			[ -d $BOOT_WWW_DIR ] && cp -a $BOOT_WWW_DIR $MAIN_WWW_DIR/$b
-			[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/pics $MAIN_WWW_DIR/$b/pics
+			#[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/images $MAIN_WWW_DIR/$b/images
 		;;
 		tank)
 			[ -d $TANK_WWW_DIR ] && ln -sf $TANK_WWW_DIR $MAIN_WWW_DIR/$b
@@ -245,7 +284,7 @@ repos() {
 }
 
 case "$COMMAND" in 
-	on|tank-only|mirror-only)
+	start|on|tank-only|mirror-only)
 		[ -d $MAIN_WWW_DIR/mirror-info ] && WWW="${WWW/mirror /}"
 		for c in $WWW; do
 			if [ ! -d $MAIN_WWW_DIR/$c ]; then
@@ -253,14 +292,36 @@ case "$COMMAND" in
 				[ "$c" = "hg" ] && repos
 			fi
 		done
-		echo "127.0.0.1 localhost $(cat /etc/hostname) tazpanel" > /etc/hosts
+		echo "127.0.0.1 localhost $(cat /etc/hostname)" > /etc/hosts
+		[ "$IP_ADDR" == "127.0.0.1" ] && echo "127.0.0.1 tazpanel tazpanel.slitaz.org" >> /etc/hosts
 		for hostname in $ADDRESS; do 
-				#if [ ! $(grep -l "${BASE_IP}.$i $hostname" /etc/hosts) ]; then
+				if [ "$hostname" = "www.slitaz.org" ]; then
+					echo "$IP_ADDR $hostname slitaz.org"
+				else
 					echo "$IP_ADDR $hostname" >> /etc/hosts
-				#fi
-		done
+				fi
+		done		
+		if [ -f /usr/share/awstats/extras/update ]; then
+			if [ ! $(grep -l "/usr/share/awstats/extras/update" $CRON_FILE) ]; then
+				echo "# Update Web stats" >> $CRON_FILE
+				echo "*/5 * * * /usr/share/awstats/extras/update" >> $CRON_FILE
+			fi
+		fi
+		if [ -f $MAIN_WWW_DIR/tank/bin/makegraphs ]; then
+			if [ ! $(grep -l "$MAIN_WWW_DIR/tank/bin/makegraphs" $CRON_FILE) ]; then
+				echo "# Update system load graphics" >> $CRON_FILE
+				echo "*/5 * * * * $MAIN_WWW_DIR/tank/bin/makegraphs" >> $CRON_FILE
+			fi
+		fi
+		if [ -f "/usr/bin/tazpkg-web" ]; then
+			if [ ! $(grep -l "/usr/bin/tazpkg-web cooking" $CRON_FILE) ]; then
+				echo "# Update pkgs.slitaz.org pages" >> $CRON_FILE
+				echo "20 02 * * * /usr/bin/tazpkg-web cooking" >> $CRON_FILE
+			fi
+		fi
 		if [ "$IP_ADDR" != "127.0.0.1" ]; then
-			if [ ! $(grep -l 'dhcp-option=option:router' /etc/dnsmasq.conf) ]; then
+			if [ ! $(grep -l "dhcp-option=option:router,$ROUTER_IP" /etc/dnsmasq.conf) ]; then
+				echo "$IP_ADDR tazpanel tazpanel.slitaz.org" >> /etc/hosts
 				echo "dhcp-option=option:router,$ROUTER_IP" >> /etc/dnsmasq.conf
 			fi
 		fi
@@ -273,7 +334,8 @@ case "$COMMAND" in
 			[ -f $VHOST_FILE ] && ln -sf $VHOST_FILE /etc/lighttpd/vhosts.conf
 		fi
 		chown -R www.www $SLITAZ_DIR/www
-		[ -f /etc/init.d/lighttpd ] && /etc/init.d/lighttpd start
+		[ -x /etc/init.d/lighttpd ] && /etc/init.d/lighttpd start
+		[ -x /etc/init.d/crond ] && /etc/init.d/crond start
 		;;
 	update-repos)
 		for i in $(ls $REPOS_DIR); do
@@ -284,9 +346,20 @@ case "$COMMAND" in
 			fi
 		done
 		;;
+	up-src-links)
+		if [ -d $SRCDIR ]; then
+			[ -d $MAIN_WWW_DIR/slitaz/mirror/sources/packages ] && rm -rf $MAIN_WWW_DIR/slitaz/mirror/sources/packages
+			for i in $(ls $SRCDIR); do
+				[ -d $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1} ] || mkdir -p $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}
+				[ -f $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i ] || ln -sf $SRCDIR/$i $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i
+			done
+			unset i
+		fi
+		;;
 	off)
-		[ -f /etc/init.d/lighttpd ] && /etc/init.d/lighttpd stop
-		echo "127.0.0.1 localhost $(cat /etc/hostname)" > /etc/hosts
+		[ -x /etc/init.d/lighttpd ] && /etc/init.d/lighttpd stop
+		[ -x /etc/init.d/crond ] && /etc/init.d/crond stop
+		echo "127.0.0.1 localhost $(cat /etc/hostname) tazpanel" > /etc/hosts
 		exit 1
 		;;
 	*)
