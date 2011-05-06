@@ -296,7 +296,7 @@ case "$COMMAND" in
 		[ "$IP_ADDR" == "127.0.0.1" ] && echo "127.0.0.1 tazpanel tazpanel.slitaz.org" >> /etc/hosts
 		for hostname in $ADDRESS; do 
 				if [ "$hostname" = "www.slitaz.org" ]; then
-					echo "$IP_ADDR $hostname slitaz.org"
+					echo "$IP_ADDR $hostname slitaz.org" >> /etc/hosts
 				else
 					echo "$IP_ADDR $hostname" >> /etc/hosts
 				fi
