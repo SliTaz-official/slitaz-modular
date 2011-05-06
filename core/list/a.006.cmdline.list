@@ -114,3 +114,7 @@ putty
 lvm2
 ddclient
 disktype
+gsource
+sshproxy
+scrub
+lzo

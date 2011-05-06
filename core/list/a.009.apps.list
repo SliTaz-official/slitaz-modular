@@ -76,6 +76,7 @@ seamonkey
 pyneighborhood
 arora
 qemu
+ogmrip
 # other-apps
 claws-mail-extras
 lxnetdaemon
@@ -89,6 +90,7 @@ remmina-plugins
 gtk-gnutella
 codeblocks
 aiksaurus
+gvim
 # web-apps
 checkers
 chess3d
