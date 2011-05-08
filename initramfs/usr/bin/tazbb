@@ -1,0 +1,29 @@
+#!/bin/sh
+
+LOCAL_REPOSITORY="$SLITAZ_DIR/${undigest:-$SLITAZ_VERSION}"
+if [ -f $LOCAL_REPOSITORY/tazchroot.conf ]; then
+	. $LOCAL_REPOSITORY/tazchroot.conf
+else
+	tazwok configure-chroot
+	. $LOCAL_REPOSITORY/tazchroot.conf
+fi
+
+if [ -f $LOCAL_REPOSITORY/slitaz.conf ]; then
+	. $LOCAL_REPOSITORY/slitaz.conf
+else
+	. /etc/slitaz/slitaz.conf
+fi
+
+if [ -f $LOCAL_REPOSITORY/tazwok.conf ]; then
+	. $LOCAL_REPOSITORY/tazwok.conf
+else
+	. /etc/slitaz/tazwok.conf
+fi
+
+[ -d $chroot_dir ] || create_chroot
+
+mount_chroot
+chroot $LOCAL_REPOSITORY/chroot /usr/bin/tank-bot
+#chroot $LOCAL_REPOSITORY/chroot tazwok cook bash
+umount_chroot
+
