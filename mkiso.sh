@@ -49,7 +49,7 @@ CLEAN_INITRAMFS="no"
 PACKAGES_REPOSITORY="$LOCAL_REPOSITORY/packages"
 INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
 SOURCES_REPOSITORY="$LOCAL_REPOSITORY/src"
-HG_LIST="flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-stable wok-tiny wok-undigest"
+HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-stable wok-tiny wok-undigest"
 MY_HG_LIST="my-wok"
 MY_HG_URL="https://bitbucket.org/godane"
 
@@ -354,7 +354,7 @@ backup_pkg() {
 					tail -1 | sed 's/ *//')"
 				incoming_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $INCOMING_REPOSITORY/packages.txt | \
 					tail -1 | sed 's/ *//')"
-				[ "$WGET_URL" ] || continue
+				#[ "$WGET_URL" ] || continue
 				if [ -f $INCOMING_REPOSITORY/$PACKAGE-$incoming_pkg_VERSION.tazpkg ]; then
 					ln -sf $INCOMING_REPOSITORY/$PACKAGE-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$incoming_pkg_VERSION.tazpkg
 				elif [ -f $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
