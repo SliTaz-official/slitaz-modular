@@ -77,6 +77,8 @@ www() {
 		website)
 			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $MAIN_WWW_DIR
 			if [ -f $MAIN_WWW_DIR/$b/libs/get-latest.sh ]; then
+					# run it here on first run
+					$MAIN_WWW_DIR/$b/libs/get-latest.sh
 				if [ ! $(grep -l "$MAIN_WWW_DIR/$b/libs/get-latest.sh" $CRON_FILE) ]; then
 					echo "#Update SliTaz stuff" >> $CRON_FILE
 					echo "*/20 * * * * $MAIN_WWW_DIR/$b/libs/get-latest.sh" >> $CRON_FILE
@@ -160,6 +162,14 @@ www() {
 			[ -d $STABLE/clean-wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
 			[ -d $PKGDIR ] && ln -sf $PKGDIR $LOCAL_REPOSITORY/packages
 			[ -d $SRCDIR ] && ln -sf $SRCDIR $LOCAL_REPOSITORY/src
+			
+			if [ -f "/usr/bin/tazpkg-web" ]; then
+				tazpkg-web cooking
+				if [ ! $(grep -l "/usr/bin/tazpkg-web cooking" $CRON_FILE) ]; then
+					echo "# Update pkgs.slitaz.org pages" >> $CRON_FILE
+					echo "20 02 * * * /usr/bin/tazpkg-web cooking" >> $CRON_FILE
+				fi
+			fi
 		;;
 		mirror)
 			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info $MAIN_WWW_DIR
@@ -189,6 +199,18 @@ www() {
 					mkdir -p $dirlog
 				fi
 			done
+			if [ -f /usr/share/awstats/extras/update ]; then
+				if [ ! $(grep -l "/usr/share/awstats/extras/update" $CRON_FILE) ]; then
+					echo "# Update Web stats" >> $CRON_FILE
+					echo "*/5 * * * * /usr/share/awstats/extras/update" >> $CRON_FILE
+				fi
+			fi
+			if [ -f $MAIN_WWW_DIR/tank/bin/makegraphs ]; then
+				if [ ! $(grep -l "$MAIN_WWW_DIR/tank/bin/makegraphs" $CRON_FILE) ]; then
+					echo "# Update system load graphics" >> $CRON_FILE
+					echo "*/5 * * * * $MAIN_WWW_DIR/tank/bin/makegraphs" >> $CRON_FILE
+				fi
+			fi
 		;;
 		hg)
 			[ -d $MAIN_WWW_DIR/hg ] || mkdir -p $MAIN_WWW_DIR/hg
@@ -214,8 +236,7 @@ repos() {
 		fi
 		if [ ! -f $REPOS_DIR/$repo/.hg/hgrc-web ]; then
 			touch $REPOS_DIR/$repo/.hg/hgrc-web
-			echo "[paths]" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			echo "default = http://hg.slitaz.org/$repo/" >> $REPOS_DIR/$repo/.hg/hgrc-web
+			cat "$REPOS_DIR/$repo/.hg/hgrc" >> $REPOS_DIR/$repo/.hg/hgrc-web
 			echo "[web]" >> $REPOS_DIR/$repo/.hg/hgrc-web
 			#[ -d $REPOS_DIR/$repo/.hg ] && echo "style = slitaz" >> $REPOS_DIR/$repo/.hg/hgrc-web
 			echo "staticurl = http://hg.slitaz.org/static/" >> $REPOS_DIR/$repo/.hg/hgrc-web
@@ -230,8 +251,10 @@ repos() {
 		fi
 	
 		if [ ! $(grep -l 'contact = ' $REPOS_DIR/$repo/.hg/hgrc ) ]; then
+			[ "$repo" = "cookutils" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "flavors" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "flavors-stable" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "my-wok" ] && echo "contact = Christopher Rogers" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-base-files" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-boot-scripts" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-configs" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
@@ -256,6 +279,7 @@ repos() {
 		fi
 	
 		if [ ! $(grep -l 'description = ' $REPOS_DIR/$repo/.hg/hgrc) ]; then
+			[ "$repo" = "cookutils" ] && echo "description = Utils to cook SliTaz packages" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "flavors" ] && echo "description = SliTaz Cooking flavors" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "flavors-stable" ] && echo "description = SliTaz Stable flavors" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-base-files" ] && echo "description = SliTaz base files" >> $REPOS_DIR/$repo/.hg/hgrc
@@ -301,24 +325,6 @@ case "$COMMAND" in
 					echo "$IP_ADDR $hostname" >> /etc/hosts
 				fi
 		done		
-		if [ -f /usr/share/awstats/extras/update ]; then
-			if [ ! $(grep -l "/usr/share/awstats/extras/update" $CRON_FILE) ]; then
-				echo "# Update Web stats" >> $CRON_FILE
-				echo "*/5 * * * /usr/share/awstats/extras/update" >> $CRON_FILE
-			fi
-		fi
-		if [ -f $MAIN_WWW_DIR/tank/bin/makegraphs ]; then
-			if [ ! $(grep -l "$MAIN_WWW_DIR/tank/bin/makegraphs" $CRON_FILE) ]; then
-				echo "# Update system load graphics" >> $CRON_FILE
-				echo "*/5 * * * * $MAIN_WWW_DIR/tank/bin/makegraphs" >> $CRON_FILE
-			fi
-		fi
-		if [ -f "/usr/bin/tazpkg-web" ]; then
-			if [ ! $(grep -l "/usr/bin/tazpkg-web cooking" $CRON_FILE) ]; then
-				echo "# Update pkgs.slitaz.org pages" >> $CRON_FILE
-				echo "20 02 * * * /usr/bin/tazpkg-web cooking" >> $CRON_FILE
-			fi
-		fi
 		if [ "$IP_ADDR" != "127.0.0.1" ]; then
 			if [ ! $(grep -l "dhcp-option=option:router,$ROUTER_IP" /etc/dnsmasq.conf) ]; then
 				echo "$IP_ADDR tazpanel tazpanel.slitaz.org" >> /etc/hosts
