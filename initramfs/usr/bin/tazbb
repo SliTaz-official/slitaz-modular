@@ -22,8 +22,9 @@ fi
 
 [ -d $chroot_dir ] || create_chroot
 
-mount_chroot
-chroot $LOCAL_REPOSITORY/chroot /usr/bin/tank-bot
-#chroot $LOCAL_REPOSITORY/chroot tazwok cook bash
-umount_chroot
+if [ -x $LOCAL_REPOSITORY/chroot/$1 ]; then
+	mount_chroot
+	chroot $LOCAL_REPOSITORY/chroot $1
+	umount_chroot
+fi
 
