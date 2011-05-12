@@ -400,7 +400,7 @@ mount_device()
    if [ "$FS" ]; then OPTIONS=$(fs_options $FS mount); FS="-t $FS"; fi
    if [ "$OPTIONS" ]; then OPTIONS="$OPTIONS"; else OPTIONS=""; fi
    if [ -f "$DEV" ]; then OPTIONS="$OPTIONS,loop"; fi
-   if [ -d "$DEV" ]; then OPTIONS="$OPTIONS,rbind"; fi
+   if [ -d "$DEV" ]; then OPTIONS="$OPTIONS,bind"; fi
    if [ "$3" ]; then OPTIONS="$OPTIONS,$3"; fi
    OPTIONS=$(echo "$OPTIONS" | sed -r "s/^,+//")
 
