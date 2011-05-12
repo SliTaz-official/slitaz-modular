@@ -281,14 +281,20 @@ chmod 1777 $UNION/tmp
 MIRRORCMD=$(cmdline_value mirror)
 if [ "$MIRRORCMD" != "" ]; then
 	MIRRORCMD=$(find_in_computer $MIRRORCMD)
-	if [ $FINDISOVAR ]; then
-		mount_device $MIRRORCMD $FINDISOMNT/$MIRROR rbind
-	else
-		mount_device $MIRRORCMD $(dirname $DATA)/$MIRROR rbind
+	if [ -d $MIRRORCMD ]; then
+		mkdir -p $MEMORY/$MIRROR
+		mount_device $MIRRORCMD $MEMORY/$MIRROR #rbind
+		#mount -n -o bind $MIRRORCMD $FINDISOMNT/$MIRROR
 	fi
 fi
 
-if [ -d $(dirname $DATA)/$MIRROR ]; then
+if [ -d $MEMORY/$MIRROR ]; then
+	echolog "Setup repo for mirror iso..."
+	mount -n -o remount,add:1:/$MEMORY/$MIRROR=ro aufs $UNION
+elif [ -d $FINDISOMNT/$MIRROR ]; then
+	echolog "Setup repo for mirror iso..."
+	mount -n -o remount,add:1:/$FINDISOMNT/$MIRROR=ro aufs $UNION
+elif [ -d $(dirname $DATA)/$MIRROR ]; then
 	echolog "Setup repo for mirror iso..."
 	mount -n -o remount,add:1:/$(dirname $DATA)/$MIRROR=ro aufs $UNION
 fi
