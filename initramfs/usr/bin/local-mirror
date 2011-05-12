@@ -13,20 +13,19 @@ COMMAND="$1"
 usage() {
 	echo "$0 $VERSION"
 	echo "$0 [on|off|update-repos|tank-only|mirror-only]"
+	echo "$0 [backup-mirror|up-src-links]"
 	exit 1 
 }
+
+#[ -d /mnt/live/memory/mirror/packages ] && PKGDIR="/mnt/live/memory/mirror/packages"
+#[ -d /mnt/live/memory/mirror/src ] && SRCDIR="/mnt/live/memory/mirror/src"
+sync_mirror=$(find /mnt/live -name "mirror" -type d -maxdepth 3 | head -1)
 
 COOKORDER="$(find /mnt/live/mnt/* -name "cookorder.list" -maxdepth 1)"
 CUR_PWD="$PWD"
 
 [ -d $SLITAZ_DIR ] || mkdir -p $SLITAZ_DIR
-if [ "$(cat /proc/cmdline | grep 'home=')" ]; then
-	[ -d $SLITAZ_DIR/repos ] || cp -a $REPOS_DIR $SLITAZ_DIR/repos
-	rm -rf $REPOS_DIR
-else
-	[ -d $SLITAZ_DIR/repos ] || ln -sf $REPOS_DIR $SLITAZ_DIR/repos
-fi
-
+[ -d $SLITAZ_DIR/repos ] || ln -sf $REPOS_DIR $SLITAZ_DIR/repos
 [ -d $SLITAZ_DIR/repos ] && REPOS_DIR="$SLITAZ_DIR/repos"
 
 #repos folders for website
@@ -36,18 +35,7 @@ PIZZA_WWW_DIR="$REPOS_DIR/slitaz-pizza/php"
 BOOT_WWW_DIR="$REPOS_DIR/slitaz-forge/boot"
 TANK_WWW_DIR="$REPOS_DIR/slitaz-forge/tank/web"
 
-if [ -d $REPOS_DIR/my-wok ]; then
-	REPO_WOK=$REPOS_DIR/my-wok
-	if [ -x /usr/bin/hg ]; then
-		cd $REPO_WOK
-		if [ ! "$(hg branch)" = "cooking" ]; then
-			hg update cooking
-		fi
-		cd $CUR_PWD
-	fi
-elif [ -d $REPOS_DIR/wok ]; then
-	REPO_WOK=$REPOS_DIR/wok
-fi
+
 
 if [ "$COMMAND" = "tank-only" ]; then
 	WWW="${WWW/mirror/}"
@@ -62,17 +50,29 @@ if [ "$COMMAND" = "mirror-only" ]; then
 fi
 
 [ -d $REPOS_DIR ] || continue
-[ -d $MAIN_WWW_DIR ] || mkdir -p $MAIN_WWW_DIR
-[ -L /var/www/vhosts ] || ln -sf $MAIN_WWW_DIR /var/www/vhosts
 
 INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
 CRON_FILE="/var/spool/cron/crontabs/root"
 
-[ -d $(dirname $CRON_FILE) ] || mkdir -p $(dirname $CRON_FILE)
-[ -f $CRON_FILE ] || touch $CRON_FILE
-
 www() {
 	b=$1
+	[ -d $(dirname $CRON_FILE) ] || mkdir -p $(dirname $CRON_FILE)
+	[ -f $CRON_FILE ] || touch $CRON_FILE
+	[ -d $MAIN_WWW_DIR ] || mkdir -p $MAIN_WWW_DIR
+	[ -L /var/www/vhosts ] || ln -sf $MAIN_WWW_DIR /var/www/vhosts
+	
+	if [ -d $REPOS_DIR/my-wok ]; then
+		REPO_WOK=$REPOS_DIR/my-wok
+		if [ -x /usr/bin/hg ]; then
+			cd $REPO_WOK
+			if [ ! "$(hg branch)" = "cooking" ]; then
+				hg update cooking
+			fi
+			cd $CUR_PWD
+		fi
+	elif [ -d $REPOS_DIR/wok ]; then
+		REPO_WOK=$REPOS_DIR/wok
+	fi
 	case "$b" in
 		website)
 			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $MAIN_WWW_DIR
@@ -344,6 +344,7 @@ case "$COMMAND" in
 		[ -x /etc/init.d/crond ] && /etc/init.d/crond start
 		;;
 	update-repos)
+		pwd=$(pwd)
 		for i in $(ls $REPOS_DIR); do
 			if [ -d $REPOS_DIR/$i/.hg ]; then
 				cd $REPOS_DIR/$i
@@ -351,6 +352,7 @@ case "$COMMAND" in
 				hg pull -u
 			fi
 		done
+		cd $pwd
 		;;
 	up-src-links)
 		if [ -d $SRCDIR ]; then
@@ -362,6 +364,40 @@ case "$COMMAND" in
 			unset i
 		fi
 		;;
+	backup-mirror|-bm)
+		case "$2" in
+			pkgs-dry-push)
+				rsync -avrtlz --delete --dry-run $PKGDIR ${sync_mirror} ;;
+			src-dry-push)
+				rsync -avrtlz --delete --dry-run $SRCDIR ${sync_mirror} ;;
+			repos-dry-push)
+				rsync -avrtlz --delete --dry-run $REPOS_DIR ${sync_mirror} ;;
+			pkgs-push)
+				rsync -avrtlz --delete $PKGDIR ${sync_mirror} ;;
+			src-push)
+				rsync -avrtlz --delete $SRCDIR ${sync_mirror} ;;
+			repos-push)
+				rsync -avrtlz --delete $REPOS_DIR ${sync_mirror} ;;
+			pkgs-dry-pull)
+				rsync -avrtlz --delete --dry-run ${sync_mirror}${PKGDIR} $(dirname ${PKGDIR}) ;;
+			src-dry-pull)
+				rsync -avrtlz --delete --dry-run ${sync_mirror}${SRCDIR} $(dirname ${SRCDIR}) ;;
+			repos-dry-pull)
+				rsync -avrtlz --delete --dry-run ${sync_mirror}${REPOS_DIR} $(dirname ${REPOS_DIR}) ;;
+			pkgs-pull)
+				rsync -avrtlz --delete ${sync_mirror}${PKGDIR} $(dirname ${PKGDIR}) ;;
+			src-pull)
+				rsync -avrtlz --delete ${sync_mirror}${SRCDIR} $(dirname ${SRCDIR}) ;;
+			repos-pull)
+				rsync -avrtlz --delete ${sync_mirror}${REPOS_DIR} $(dirname ${REPOS_DIR}) ;;
+			*)
+				echo "$0 backup-mirror pkgs-dry-{push|pull}"
+				echo "$0 backup-mirorr pkgs-{push|pull}"
+				echo "$0 backup-mirror src-dry-{push|pull}"
+				echo "$0 backup-mirror src-{push|pull}"
+				echo "$0 backup-mirror repos-dry-{push|pull}"
+				echo "$0 backup-mirror repos-{push|pull}" ;;
+		esac ;;
 	off)
 		[ -x /etc/init.d/lighttpd ] && /etc/init.d/lighttpd stop
 		[ -x /etc/init.d/crond ] && /etc/init.d/crond stop
