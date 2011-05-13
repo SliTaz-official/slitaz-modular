@@ -35,8 +35,6 @@ PIZZA_WWW_DIR="$REPOS_DIR/slitaz-pizza/php"
 BOOT_WWW_DIR="$REPOS_DIR/slitaz-forge/boot"
 TANK_WWW_DIR="$REPOS_DIR/slitaz-forge/tank/web"
 
-
-
 if [ "$COMMAND" = "tank-only" ]; then
 	WWW="${WWW/mirror/}"
 	ADDRESS="${ADDRESS/mirror.slitaz.org/}"
@@ -51,7 +49,7 @@ fi
 
 [ -d $REPOS_DIR ] || continue
 
-INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
+INCOMING_REPOSITORY="$COOKING/packages-incoming"
 CRON_FILE="/var/spool/cron/crontabs/root"
 
 www() {
@@ -73,6 +71,9 @@ www() {
 	elif [ -d $REPOS_DIR/wok ]; then
 		REPO_WOK=$REPOS_DIR/wok
 	fi
+	[ -d $STABLE ] || mkdir -p $STABLE
+	[ -d $COOKING ] || mkdir -p $COOKING
+
 	case "$b" in
 		website)
 			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $MAIN_WWW_DIR
@@ -120,6 +121,8 @@ www() {
 			[ -f $INCOMING_REPOSITORY/packages.list ] || touch $INCOMING_REPOSITORY/packages.list
 			[ -f $INCOMING_REPOSITORY/packages.md5 ] || touch $INCOMING_REPOSITORY/packages.md5
 			[ -f $INCOMING_REPOSITORY/packages.txt ] || touch $INCOMING_REPOSITORY/packages.txt
+			[ -d $PKGDIR ] && ln -sf $PKGDIR $COOKING/packages
+			[ -d $SRCDIR ] && ln -sf $SRCDIR $COOKING/src
 			if [ "$CUSTOM_WOK" = "yes" ]; then
 				tazwok gen-wok-db --WOK=$REPO_WOK
 				if [ -f $COOKORDER ]; then
@@ -160,9 +163,6 @@ www() {
 			[ -d $REPOS_DIR/flavors-stable ] && ln -sf $REPOS_DIR/flavors-stable $STABLE/flavors
 			#[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
 			[ -d $STABLE/clean-wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
-			[ -d $PKGDIR ] && ln -sf $PKGDIR $LOCAL_REPOSITORY/packages
-			[ -d $SRCDIR ] && ln -sf $SRCDIR $LOCAL_REPOSITORY/src
-			
 			if [ -f "/usr/bin/tazpkg-web" ]; then
 				tazpkg-web cooking
 				if [ ! $(grep -l "/usr/bin/tazpkg-web cooking" $CRON_FILE) ]; then
