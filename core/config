@@ -5,9 +5,9 @@
 BASE_MODULES="a.001.core a.002.firefox a.003.server"
 MODULES="a.004.thunderbird a.005.xorg-extra a.006.cmdline a.007.libs a.008.xfce a.009.apps \
 a.010.frozen-bubble a.011.celestia a.012.warzone2100 a.013.blender \
-a.014.virtualbox-ose a.015.clamav a.016.freeciv a.017.btanks \
-a.018.prboom a.019.openttd a.020.lincity-ng a.021.assaultcube \
-a.022.scribus a.023.java-jre a.024.emacs a.025.openshot a.026.mono"
+a.014.virtualbox-ose a.015.clamav a.016.freeciv" #a.017.btanks \
+#a.018.prboom a.019.openttd a.020.lincity-ng a.021.assaultcube \
+#a.022.scribus a.023.emacs a.024.openshot a.025.mono" # a.026.java-jre
 
 # download local copies of hg repos for iso
 # equals yes or no 

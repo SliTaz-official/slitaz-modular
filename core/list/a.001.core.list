@@ -27,8 +27,9 @@ epdfview
 expat
 firmware-iwlwifi-1000
 firmware-iwlwifi-3945
-firmware-iwlwifi-4945
+firmware-iwlwifi-4965
 firmware-iwlwifi-5000
+firmware-iwlwifi-5150
 firmware-iwlwifi-6000
 firmware-iwlwifi-6050
 fontconfig
@@ -55,7 +56,7 @@ hicolor-icon-theme
 isapnptools
 isomaster
 jpeg
-kbd-busybox
+kbd-base
 lcms
 leafpad
 libcap
@@ -217,3 +218,4 @@ xterm
 yad
 zlib
 texinfo
+ndiswrapper-utils
