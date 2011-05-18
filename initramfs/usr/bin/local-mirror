@@ -77,12 +77,10 @@ www() {
 	case "$b" in
 		website)
 			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $MAIN_WWW_DIR
-			if [ -f $MAIN_WWW_DIR/$b/libs/get-latest.sh ]; then
-					# run it here on first run
-					$MAIN_WWW_DIR/$b/libs/get-latest.sh
-				if [ ! $(grep -l "$MAIN_WWW_DIR/$b/libs/get-latest.sh" $CRON_FILE) ]; then
+			if [ -f $MAIN_WWW_DIR/$b/libs/get-feeds.sh ]; then
+				if [ ! $(grep -l "$MAIN_WWW_DIR/$b/libs/get-feeds.sh" $CRON_FILE) ]; then
 					echo "#Update SliTaz stuff" >> $CRON_FILE
-					echo "*/20 * * * * $MAIN_WWW_DIR/$b/libs/get-latest.sh" >> $CRON_FILE
+					echo "*/20 * * * * $MAIN_WWW_DIR/$b/libs/get-feeds.sh" >> $CRON_FILE
 				fi
 			fi
 		;;
@@ -321,6 +319,8 @@ case "$COMMAND" in
 		for hostname in $ADDRESS; do 
 				if [ "$hostname" = "www.slitaz.org" ]; then
 					echo "$IP_ADDR $hostname slitaz.org" >> /etc/hosts
+				elif [ "$hostname" = "bb.slitaz.org" ]; then
+					echo "$IP_ADDR $hostname cook.slitaz.org" >> /etc/hosts
 				else
 					echo "$IP_ADDR $hostname" >> /etc/hosts
 				fi
