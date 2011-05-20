@@ -3,7 +3,7 @@ gcc-lib-base
 ncurses-common
 slitaz-base-files
 busybox
-kbd-busybox
+kbd-base
 gpxe
 syslinux
 zlib
