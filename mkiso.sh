@@ -49,8 +49,8 @@ CLEAN_INITRAMFS="no"
 PACKAGES_REPOSITORY="$LOCAL_REPOSITORY/packages"
 INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
 SOURCES_REPOSITORY="$LOCAL_REPOSITORY/src"
-HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-stable wok-tiny wok-undigest"
-MY_HG_LIST="my-wok"
+HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools tazlito tazpanel tazpkg tazusb tazweb tazwok website wok-tiny wok-undigest"
+MY_HG_LIST="wok-tank"
 MY_HG_URL="https://bitbucket.org/godane"
 
 error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
@@ -485,7 +485,7 @@ imgcommon () {
 			for my_hg in $MY_HG_LIST; do
 				HG_URL="$MY_HG_URL"
 				copy_hg $my_hg
-				WOK=${HG_DIR}/my-wok/repos/my-wok
+				WOK=${HG_DIR}/wok-tank/repos/wok-tank
 				if [ -d $WOK/.hg ]; then
 					cd $WOK
 					if [ "$(hg branch)" != "cooking" ]; then
@@ -501,8 +501,8 @@ imgcommon () {
 	[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
 	[ -d $PKGISO_DIR ] && rm -r $PKGISO_DIR
 	
-	if [ -d ${HG_DIR}/my-wok/repos/my-wok/.hg ]; then
-		WOK=${HG_DIR}/my-wok/repos/my-wok
+	if [ -d ${HG_DIR}/wok-tank/repos/wok-tank/.hg ]; then
+		WOK=${HG_DIR}/wok-tank/repos/wok-tank
 		backup_pkg
 		backup_src
 	elif [ -d ${HG_DIR}/wok/repos/wok/.hg ]; then
