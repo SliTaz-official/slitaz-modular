@@ -59,8 +59,8 @@ www() {
 	[ -d $MAIN_WWW_DIR ] || mkdir -p $MAIN_WWW_DIR
 	[ -L /var/www/vhosts ] || ln -sf $MAIN_WWW_DIR /var/www/vhosts
 	
-	if [ -d $REPOS_DIR/my-wok ]; then
-		REPO_WOK=$REPOS_DIR/my-wok
+	if [ -d $REPOS_DIR/wok-tank ]; then
+		REPO_WOK=$REPOS_DIR/wok-tank
 		if [ -x /usr/bin/hg ]; then
 			cd $REPO_WOK
 			if [ ! "$(hg branch)" = "cooking" ]; then
@@ -252,7 +252,6 @@ repos() {
 			[ "$repo" = "cookutils" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "flavors" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "flavors-stable" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "my-wok" ] && echo "contact = Christopher Rogers" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-base-files" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-boot-scripts" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-configs" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
@@ -272,6 +271,7 @@ repos() {
 			[ "$repo" = "website" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "wok" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "wok-stable" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "wok-tank" ] && echo "contact = Christopher Rogers" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "wok-tiny" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "wok-undigest" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 		fi
@@ -299,6 +299,7 @@ repos() {
 			[ "$repo" = "website" ] && echo "description = SliTaz Website" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "wok" ] && echo "description = SliTaz Cooking wok" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "wok-stable" ] && echo "description = SliTaz Stable wok" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "wok-tank" ] && echo "description = SliTaz Tank Mirror wok" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "wok-tiny" ] && echo "description = Tiny SliTaz wok" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "wok-undigest" ] && echo "description = SliTaz Undigest wok" >> $REPOS_DIR/$repo/.hg/hgrc
 		fi
