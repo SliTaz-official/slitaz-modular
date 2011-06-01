@@ -7,9 +7,8 @@ check_root
 
 . /etc/local-mirror.conf
 
-VERSION="0.1"
 COMMAND="$1"
-
+VERSION="0.1"
 usage() {
 	echo "$0 $VERSION"
 	echo "$0 [on|off|update-repos|tank-only|mirror-only]"
@@ -23,9 +22,12 @@ sync_mirror=$(find /mnt/live -name "mirror" -type d -maxdepth 3 | head -1)
 
 COOKORDER="$(find /mnt/live/mnt/* -name "cookorder.list" -maxdepth 1)"
 CUR_PWD="$PWD"
+version="$(cat /etc/slitaz-release)"
 
-[ -d $SLITAZ_DIR ] || mkdir -p $SLITAZ_DIR
+[ -d $SLITAZ_DIR/$version ] || mkdir -p $SLITAZ_DIR/$version
 [ -d $SLITAZ_DIR/repos ] || ln -sf $REPOS_DIR $SLITAZ_DIR/repos
+[ -d $SLITAZ_DIR/$version/packages ] || ln -sf $PKGDIR $SLITAZ_DIR/$version/packages
+[ -d $SLITAZ_DIR/$version/src ] || ln -sf $SRCDIR $SLITAZ_DIR/$version/src
 [ -d $SLITAZ_DIR/repos ] && REPOS_DIR="$SLITAZ_DIR/repos"
 
 #repos folders for website
@@ -148,19 +150,44 @@ www() {
 			[ -d $REPOS_DIR/slitaz-modular ] && ln -sf $REPOS_DIR/slitaz-modular $COOKING/slitaz-modular
 			echo -e "$MAIN_WWW_DIR/bb" | tazwok webserver on
 		;;
+		cook)
+			pwd=$(pwd)
+			if [ -d $REPOS_DIR/my-cookutils ]; then
+				cd $REPOS_DIR/my-cookutils
+				if [ "$(hg branch)" != "testing" ]; then
+					hg update testing
+				fi
+				make install
+				cd $pwd
+			fi
+			echo "$PKGDIR" > $LOCALSTATE/mirror
+			[ -d /var/www/cgi-bin/cooker ] && cp -a /var/www/cgi-bin/cooker $MAIN_WWW_DIR/cook
+			if [ "$MKCHROOT" = "yes" ]; then
+				tazdev gen-chroot $version
+				[ -d $SLITAZ_DIR/$version/chroot ] && mkdir -p $SLITAZ_DIR/$version/chroot$(dirname $CRON_FILE)
+				[ -d $SLITAZ_DIR/$version/chroot ] && echo "* */2 * * * /usr/bin/cooker" > $SLITAZ_DIR/$version/chroot${CRON_FILE}
+				[ -d $SLITAZ_DIR/$version/chroot ] && echo "$SLITAZ_DIR/$version/packages" > $SLITAZ_DIR/$version/chroot${LOCALSTATE}/mirror
+			fi
+			[ -d $REPOS_DIR/wok-tank ] && ln -sf $REPOS_DIR/wok-tank $SLITAZ_DIR/$version/wok-hg
+			#[ -d $REPOS_DIR/wok-tank ] && ln -sf $REPOS_DIR/wok-tank $SLITAZ_DIR/$version/wok
+			[ -d $PKGDIR ] && ln -sf $PKGDIR $SLITAZ_DIR/$version/packages
+		;;
 		pkgs)
 			[ -d $MAIN_WWW_DIR/pkgs ] || mkdir -p $MAIN_WWW_DIR/pkgs
-		
+			pwd=$(pwd)
+			if [ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web ]; then
+				cd $REPOS_DIR/slitaz-dev-tools/tazpkg-web
+				make install
+				cd $pwd
+			fi
 			#[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
 			#[ -f /var/lib/tazpkg-web/search.cgi ] && cp -a /var/lib/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
 			[ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
 			[ -f $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
-			[ -d $COOKING ] || mkdir -p $COOKING
-			[ -d $STABLE ] || mkdir -p $STABLE
 			[ -d $REPOS_DIR/flavors ] && ln -sf $REPOS_DIR/flavors $COOKING/flavors
-			[ -d $REPOS_DIR/flavors-stable ] && ln -sf $REPOS_DIR/flavors-stable $STABLE/flavors
+			#[ -d $REPOS_DIR/flavors-stable ] && ln -sf $REPOS_DIR/flavors-stable $STABLE/flavors
 			#[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
-			[ -d $STABLE/clean-wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
+			#[ -d $STABLE/clean-wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
 			if [ -f "/usr/bin/tazpkg-web" ]; then
 				tazpkg-web cooking
 				if [ ! $(grep -l "/usr/bin/tazpkg-web cooking" $CRON_FILE) ]; then
@@ -250,6 +277,7 @@ repos() {
 	
 		if [ ! $(grep -l 'contact = ' $REPOS_DIR/$repo/.hg/hgrc ) ]; then
 			[ "$repo" = "cookutils" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "my-cookutils" ] && echo "contact = Christopher Rogers" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "flavors" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "flavors-stable" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-base-files" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
@@ -278,6 +306,7 @@ repos() {
 	
 		if [ ! $(grep -l 'description = ' $REPOS_DIR/$repo/.hg/hgrc) ]; then
 			[ "$repo" = "cookutils" ] && echo "description = Utils to cook SliTaz packages" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "my-cookutils" ] && echo "description = More powerful version of cookutils" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "flavors" ] && echo "description = SliTaz Cooking flavors" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "flavors-stable" ] && echo "description = SliTaz Stable flavors" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-base-files" ] && echo "description = SliTaz base files" >> $REPOS_DIR/$repo/.hg/hgrc
@@ -320,8 +349,6 @@ case "$COMMAND" in
 		for hostname in $ADDRESS; do 
 				if [ "$hostname" = "www.slitaz.org" ]; then
 					echo "$IP_ADDR $hostname slitaz.org" >> /etc/hosts
-				elif [ "$hostname" = "bb.slitaz.org" ]; then
-					echo "$IP_ADDR $hostname cook.slitaz.org" >> /etc/hosts
 				else
 					echo "$IP_ADDR $hostname" >> /etc/hosts
 				fi
