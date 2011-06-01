@@ -50,7 +50,7 @@ PACKAGES_REPOSITORY="$LOCAL_REPOSITORY/packages"
 INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
 SOURCES_REPOSITORY="$LOCAL_REPOSITORY/src"
 HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools tazlito tazpanel tazpkg tazusb tazweb tazwok website wok-tiny wok-undigest"
-MY_HG_LIST="wok-tank"
+MY_HG_LIST="my-cookutils wok-tank"
 MY_HG_URL="https://bitbucket.org/godane"
 
 error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
