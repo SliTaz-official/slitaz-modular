@@ -6,6 +6,7 @@ php-mysql
 perl-geo-ipfree
 php-gd
 mercurial
+make
 awstats
 rrdtool
 slitaz-mercurial-style
