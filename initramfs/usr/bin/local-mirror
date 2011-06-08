@@ -28,6 +28,8 @@ version="$(cat /etc/slitaz-release)"
 [ -d $SLITAZ_DIR/repos ] || ln -sf $REPOS_DIR $SLITAZ_DIR/repos
 [ -d $SLITAZ_DIR/$version/packages ] || ln -sf $PKGDIR $SLITAZ_DIR/$version/packages
 [ -d $SLITAZ_DIR/$version/src ] || ln -sf $SRCDIR $SLITAZ_DIR/$version/src
+[ -d $SLITAZ_DIR/src ] || ln -sf $SRCDIR $SLITAZ_DIR/src
+[ -d $SLITAZ_DIR/packages ] || ln -sf $PKGDIR $SLITAZ_DIR/packages
 [ -d $SLITAZ_DIR/repos ] && REPOS_DIR="$SLITAZ_DIR/repos"
 
 #repos folders for website
@@ -52,6 +54,7 @@ fi
 [ -d $REPOS_DIR ] || continue
 
 INCOMING_REPOSITORY="$COOKING/packages-incoming"
+INCOMING="$SLITAZ_DIR/$version/incoming"
 CRON_FILE="/var/spool/cron/crontabs/root"
 
 www() {
@@ -151,26 +154,33 @@ www() {
 			echo -e "$MAIN_WWW_DIR/bb" | tazwok webserver on
 		;;
 		cook)
-			pwd=$(pwd)
-			if [ -d $REPOS_DIR/my-cookutils ]; then
-				cd $REPOS_DIR/my-cookutils
-				if [ "$(hg branch)" != "testing" ]; then
-					hg update testing
-				fi
-				make install
-				cd $pwd
-			fi
+			#pwd=$(pwd)
+			#if [ -d $REPOS_DIR/my-cookutils ]; then
+			#	cd $REPOS_DIR/my-cookutils
+			#	if [ "$(hg branch)" != "testing" ]; then
+			#		hg update testing
+			#	fi
+			#	make install
+			#	cd $pwd
+			#fi
 			echo "$PKGDIR" > $LOCALSTATE/mirror
-			[ -d /var/www/cgi-bin/cooker ] && cp -a /var/www/cgi-bin/cooker $MAIN_WWW_DIR/cook
+			[ -d $LOCALSTATE/undigest/incoming ] || mkdir -p $LOCALSTATE/undigest/incoming
+			[ -f $LOCALSTATE/undigest/incoming/mirror ] || echo "$INCOMING" > $LOCALSTATE/undigest/incoming/mirror
+			[ -d $SLITAZ_DIR/$version/incoming ] || mkdir -p $SLITAZ_DIR/$version/incoming
+			[ -d /var/www/cooker ] && cp -a /var/www/cooker $MAIN_WWW_DIR/cook
+			[ -f /usr/share/cook/header.html ] && cp -a /usr/share/cook/header.html $MAIN_WWW_DIR/cook/header.html
 			if [ "$MKCHROOT" = "yes" ]; then
 				tazdev gen-chroot $version
 				[ -d $SLITAZ_DIR/$version/chroot ] && mkdir -p $SLITAZ_DIR/$version/chroot$(dirname $CRON_FILE)
-				[ -d $SLITAZ_DIR/$version/chroot ] && echo "* */2 * * * /usr/bin/cooker" > $SLITAZ_DIR/$version/chroot${CRON_FILE}
+				[ -d $SLITAZ_DIR/$version/chroot ] && echo "0 */2 * * * /usr/bin/cooker" > $SLITAZ_DIR/$version/chroot${CRON_FILE}
 				[ -d $SLITAZ_DIR/$version/chroot ] && echo "$SLITAZ_DIR/$version/packages" > $SLITAZ_DIR/$version/chroot${LOCALSTATE}/mirror
+				mkdir -p $SLITAZ_DIR/$version/chroot${LOCALSTATE}/undigest/incoming
+				echo "$SLITAZ_DIR/$version/incoming" > $SLITAZ_DIR/$version/chroot${LOCALSTATE}/undigest/incoming/mirror
 			fi
 			[ -d $REPOS_DIR/wok-tank ] && ln -sf $REPOS_DIR/wok-tank $SLITAZ_DIR/$version/wok-hg
 			#[ -d $REPOS_DIR/wok-tank ] && ln -sf $REPOS_DIR/wok-tank $SLITAZ_DIR/$version/wok
-			[ -d $PKGDIR ] && ln -sf $PKGDIR $SLITAZ_DIR/$version/packages
+			[ -d $MAIN_WWW_DIR/cook/packages ] || ln -sf $SLITAZ_DIR/$version/packages $MAIN_WWW_DIR/cook/packages
+			[ -d $MAIN_WWW_DIR/cook/incoming ] || ln -sf $SLITAZ_DIR/$version/incoming $MAIN_WWW_DIR/cook/incoming
 		;;
 		pkgs)
 			[ -d $MAIN_WWW_DIR/pkgs ] || mkdir -p $MAIN_WWW_DIR/pkgs
@@ -200,7 +210,7 @@ www() {
 			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info $MAIN_WWW_DIR
 			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz $MAIN_WWW_DIR
 			[ -d $MAIN_WWW_DIR/slitaz/mirror/packages ] || mkdir -p $MAIN_WWW_DIR/slitaz/mirror/packages
-			[ -d $PKGDIR ] && ln -sf $PKGDIR $MAIN_WWW_DIR/slitaz/mirror/packages/$(cat /etc/slitaz-release)
+			[ -d $PKGDIR ] && ln -sf $PKGDIR $MAIN_WWW_DIR/slitaz/mirror/packages/$version
 			if [ -d $SRCDIR ]; then
 				for i in $(ls $SRCDIR); do
 					[ -d $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1} ] || mkdir -p $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}
