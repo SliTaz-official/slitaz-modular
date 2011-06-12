@@ -301,6 +301,7 @@ repos() {
 			[ "$repo" = "slitaz-pizza" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-tools" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-vz" ] && echo "contact = Eric Joseph-Alexandre" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "ssfs" ] && echo "contact Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazlito" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazpanel" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazpkg" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
@@ -330,6 +331,7 @@ repos() {
 			[ "$repo" = "slitaz-pizza" ] && echo "description = SliTaz Online flavor builder" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-tools" ] && echo "description = SliTaz Tools and Tinyutils" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "slitaz-vz" ] && echo "description = SliTaz OpenVZ integration" >> $REPOS_DIR/$repo/.hg/hgrc
+			[ "$repo" = "ssfs" ] && echo "description = SliTaz Secure File Storage" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazlito" ] && echo "description = SliTaz Live Tool" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazpanel" ] && echo "description = Slitaz Administration Panel" >> $REPOS_DIR/$repo/.hg/hgrc
 			[ "$repo" = "tazpkg" ] && echo "description = SliTaz Packages manager" >> $REPOS_DIR/$repo/.hg/hgrc

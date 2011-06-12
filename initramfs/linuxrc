@@ -284,7 +284,6 @@ if [ "$MIRRORCMD" != "" ]; then
 	if [ -d $MIRRORCMD ]; then
 		mkdir -p $MEMORY/$MIRROR
 		mount_device $MIRRORCMD $MEMORY/$MIRROR #rbind
-		#mount -n -o bind $MIRRORCMD $FINDISOMNT/$MIRROR
 	fi
 fi
 
