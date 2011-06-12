@@ -49,7 +49,7 @@ CLEAN_INITRAMFS="no"
 PACKAGES_REPOSITORY="$LOCAL_REPOSITORY/packages"
 INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
 SOURCES_REPOSITORY="$LOCAL_REPOSITORY/src"
-HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools tazlito tazpanel tazpkg tazusb tazweb tazwok website wok-tiny wok-undigest"
+HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok website wok-tiny wok-undigest"
 MY_HG_LIST="my-cookutils wok-tank"
 MY_HG_URL="https://bitbucket.org/godane"
 
@@ -337,33 +337,65 @@ backup_pkg() {
 				tail -1 | sed 's/ *//')"
 			incoming_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $INCOMING_REPOSITORY/packages.txt | \
 				tail -1 | sed 's/ *//')"
+			cache_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $LOCALSTATE/packages.txt | \
+					tail -1 | sed 's/ *//')"
 			for wanted in $rwanted; do
 				if [ -f $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg ]; then
 					ln -sf $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$incoming_pkg_VERSION.tazpkg
 				elif [ -f $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg ]; then
 					ln -sf $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$pkg_VERSION.tazpkg
-				elif [ -f $CACHE_REPOSITORY/$Wanted-$pkg_VERSION.tazpkg ]; then
-					ln -sf $CACHE_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$pkg_VERSION.tazpkg
+				elif [ -f $CACHE_REPOSITORY/$Wanted-$cache_pkg_VERSION.tazpkg ]; then
+					ln -sf $CACHE_REPOSITORY/$wanted-$cache_pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$cache_pkg_VERSION.tazpkg
 				fi
 			done
-		
-			for i in $(ls $WOK/$pkg/receipt); do
-				unset SOURCE TARBALL WANTED PACKAGE VERSION pkg_VERSION COOK_OPT WGET_URL
-				source $i
-				pkg_VERSION="$(grep -m1 -A1 ^$PACKAGE$ $PACKAGES_REPOSITORY/packages.txt | \
-					tail -1 | sed 's/ *//')"
-				incoming_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $INCOMING_REPOSITORY/packages.txt | \
-					tail -1 | sed 's/ *//')"
-				#[ "$WGET_URL" ] || continue
-				if [ -f $INCOMING_REPOSITORY/$PACKAGE-$incoming_pkg_VERSION.tazpkg ]; then
-					ln -sf $INCOMING_REPOSITORY/$PACKAGE-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$incoming_pkg_VERSION.tazpkg
-				elif [ -f $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
-					ln -sf $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg
-				elif [ -f $CACHE_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
-					ln -sf $CACHE_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg
-				fi
-			done
+
+			if [ -f $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg ]; then
+				ln -sf $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$pkg-$incoming_pkg_VERSION.tazpkg
+			elif [ -f $PACKAGES_REPOSITORY/$pkg-$pkg_VERSION.tazpkg ]; then
+				ln -sf $PACKAGES_REPOSITORY/$pkg-$pkg_VERSION.tazpkg $PKGISO_DIR/$pkg-$pkg_VERSION.tazpkg
+			elif [ -f $CACHE_REPOSITORY/$pkg-$cache_pkg_VERSION.tazpkg ]; then
+				ln -sf $CACHE_REPOSITORY/$pkg-$cache_pkg_VERSION.tazpkg $PKGISO_DIR/$pkg-$cache_pkg_VERSION.tazpkg
+			fi
 		done
+		
+		if [ "$SRC_PKG" = "yes" ]; then
+			cat $ISODIR/cookorder.list | grep -v "^#" | while read pkg; do
+				[ $(grep ^$pkg$ $PROFILE/list/srcpkg.banned) ] && continue
+				for i in $(grep -l "^SOURCE=\"$pkg\"" $WOK/*/receipt); do
+					unset SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT WGET_URL
+					unset pkg_VERSION incoming_pkg_VERSION cache_pkg_VERSION src_pkg src_ver 
+					source $i
+					src_pkg=$(grep ^PACKAGE= $WOK/$pkg/receipt | cut -d "=" -f 2 | sed -e 's/"//g')
+					src_ver=$(grep ^VERSION= $WOK/$pkg/receipt | cut -d "=" -f 2 | sed -e 's/"//g')
+					[ "$VERSION" = "$src_ver" ] || continue
+					pkg_VERSION="$(grep -m1 -A1 ^$PACKAGE$ $PACKAGES_REPOSITORY/packages.txt | \
+						tail -1 | sed 's/ *//')"
+					incoming_pkg_VERSION="$(grep -m1 -A1 ^$PACKAGE$ $INCOMING_REPOSITORY/packages.txt | \
+						tail -1 | sed 's/ *//')"
+					cache_pkg_VERSION="$(grep -m1 -A1 ^$PACKAGE$ $LOCALSTATE/packages.txt | \
+						tail -1 | sed 's/ *//')"
+					rwanted=$(grep $'\t'$PACKAGE$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
+					
+					for wanted in $rwanted; do
+						if [ -f $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg ]; then
+							ln -sf $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$incoming_pkg_VERSION.tazpkg
+						elif [ -f $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg ]; then
+							ln -sf $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$pkg_VERSION.tazpkg
+						elif [ -f $CACHE_REPOSITORY/$Wanted-$pkg_VERSION.tazpkg ]; then
+							ln -sf $CACHE_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$pkg_VERSION.tazpkg
+						fi
+					done
+					
+					if [ -f $INCOMING_REPOSITORY/$PACKAGE-$incoming_pkg_VERSION.tazpkg ]; then
+						ln -sf $INCOMING_REPOSITORY/$PACKAGE-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$incoming_pkg_VERSION.tazpkg
+					elif [ -f $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg ]; then
+						ln -sf $PACKAGES_REPOSITORY/$PACKAGE-$pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg
+					elif [ -f $CACHE_REPOSITORY/$PACKAGE-$cache_pkg_VERSION.tazpkg ]; then
+						ln -sf $CACHE_REPOSITORY/$PACKAGE-$cache_pkg_VERSION.tazpkg $PKGISO_DIR/$PACKAGE-$cache_pkg_VERSION.tazpkg
+					fi
+				done
+			done
+		fi
 		
 		[ -f $LOG/packages-gen-list.log ] && rm -f $LOG/packages-gen-list.log
 		[ -d $PKGISO_DIR ] && tazwok gen-list $PKGISO_DIR | tee -a $LOG/packages-gen-list.log
