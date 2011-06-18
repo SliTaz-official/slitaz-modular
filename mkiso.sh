@@ -412,21 +412,21 @@ backup_src() {
 		cat $ISODIR/cookorder.list | grep -v "^#"| while read pkg; do
 			#rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
 			for i in $(ls $WOK/$pkg/receipt); do
-				unset SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT WGET_URL
+				unset SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT WGET_URL KBASEVER
 				source $i
 				#{ [ ! "$TARBALL" ] || [ ! "$WGET_URL" ] ; } && continue
 				[ "$WGET_URL" ] || continue
 				if [ ! -f "$SOURCES_REPOSITORY/$TARBALL" ] && \
-					[ ! -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
+					[ ! -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ]; then
 					tazwok get-src $PACKAGE --nounpack
 					if [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
 						ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
-					elif [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ]; then
-						ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
+					elif [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ]; then
+						ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma
 					fi
 				else
 					[ -f "$SOURCES_REPOSITORY/$TARBALL" ] && ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
-					[ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma" ] && ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-$VERSION.tar.lzma
+					[ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ] && ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma
 				fi
 			done
 		done
