@@ -1,7 +1,7 @@
 #!/bin/bash
 
-. /etc/slitaz/slitaz.conf 
-. /etc/slitaz/tazwok.conf 
+. /etc/slitaz/slitaz.conf
+. /etc/slitaz/cook.conf
 
 QUIET="y"
 FORCE="y"
@@ -46,10 +46,11 @@ BACKUP_ALL="no"
 KEY_FILES="init liblinuxlive linuxrc"
 CLEAN_MODULES_DIR="no"
 CLEAN_INITRAMFS="no"
-PACKAGES_REPOSITORY="$LOCAL_REPOSITORY/packages"
-INCOMING_REPOSITORY="$LOCAL_REPOSITORY/packages-incoming"
-SOURCES_REPOSITORY="$LOCAL_REPOSITORY/src"
-HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok website wok-tiny wok-undigest"
+LOCAL_REPOSITORY="$SLITAZ"
+PACKAGES_REPOSITORY="$PKGS"
+INCOMING_REPOSITORY="$INCOMING"
+SOURCES_REPOSITORY="$SRC"
+HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-tiny wok-undigest"
 MY_HG_LIST="my-cookutils wok-tank"
 MY_HG_URL="https://bitbucket.org/godane"
 
@@ -326,13 +327,20 @@ backup_pkg() {
 				sed -i "s|$pkg||g" $ISODIR/packages-installed.list
 			fi
 		done
-		tazwok gen-cooklist $ISODIR/packages-installed.list > $ISODIR/cookorder.list
-		[ -f $INCOMING_REPOSITORY/wok-wanted.txt ] || tazwok gen-wok-db --WOK=$WOK
-		
+		cook gen-cooklist $ISODIR/packages-installed.list > $ISODIR/cookorder.list
+		[ -f $CACHE/fullco ] || cook gen-wok-db $WOK
+		cookorder=$ISODIR/cookorder.list
+		[ "$BACKUP_ALL" = "yes" ] && cookorder=$CACHE/fullco
 		CACHE_REPOSITORY="$CACHE_DIR/$(cat /etc/slitaz-release)/packages"
 
-		cat $ISODIR/cookorder.list | grep -v "^#" | while read pkg; do
-			rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
+		cat $cookorder | grep -v "^#" | while read pkg; do
+			[ -f "$WOK/$pkg/receipt" ] || continue
+			unset rwanted pkg_VERSION incoming_pkg_VERSION cache_pkg_VERSION
+			rwanted=$(grep $'\t'$pkg$ $CACHE/wok-wanted | cut -f 1)
+			if [ -f $PROFILE/list/backupall.banned ]; then
+				[ "$BACKUP_ALL" = "yes" ] && \
+					[ $(grep -l "^$pkg$" $PROFILE/list/backupall.banned) ] && continue
+			fi
 			pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $PACKAGES_REPOSITORY/packages.txt | \
 				tail -1 | sed 's/ *//')"
 			incoming_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $INCOMING_REPOSITORY/packages.txt | \
@@ -340,6 +348,10 @@ backup_pkg() {
 			cache_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $LOCALSTATE/packages.txt | \
 					tail -1 | sed 's/ *//')"
 			for wanted in $rwanted; do
+				if [ -f $PROFILE/list/backupall.banned ]; then
+					[ "$BACKUP_ALL" = "yes" ] && \
+						[ $(grep -l "^$wamted$" $PROFILE/list/backupall.banned) ] && continue
+				fi
 				if [ -f $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg ]; then
 					ln -sf $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$incoming_pkg_VERSION.tazpkg
 				elif [ -f $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg ]; then
@@ -359,22 +371,23 @@ backup_pkg() {
 		done
 		
 		if [ "$SRC_PKG" = "yes" ]; then
-			cat $ISODIR/cookorder.list | grep -v "^#" | while read pkg; do
+			cat $cookorder | grep -v "^#" | while read pkg; do
+				[ -f "$WOK/$pkg/receipt" ] || continue
 				[ $(grep ^$pkg$ $PROFILE/list/srcpkg.banned) ] && continue
 				for i in $(grep -l "^SOURCE=\"$pkg\"" $WOK/*/receipt); do
 					unset SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT WGET_URL
 					unset pkg_VERSION incoming_pkg_VERSION cache_pkg_VERSION src_pkg src_ver 
-					source $i
+					#source $i
 					src_pkg=$(grep ^PACKAGE= $WOK/$pkg/receipt | cut -d "=" -f 2 | sed -e 's/"//g')
 					src_ver=$(grep ^VERSION= $WOK/$pkg/receipt | cut -d "=" -f 2 | sed -e 's/"//g')
 					[ "$VERSION" = "$src_ver" ] || continue
-					pkg_VERSION="$(grep -m1 -A1 ^$PACKAGE$ $PACKAGES_REPOSITORY/packages.txt | \
+					pkg_VERSION="$(grep -m1 -A1 ^$src_pkg$ $PACKAGES_REPOSITORY/packages.txt | \
 						tail -1 | sed 's/ *//')"
-					incoming_pkg_VERSION="$(grep -m1 -A1 ^$PACKAGE$ $INCOMING_REPOSITORY/packages.txt | \
+					incoming_pkg_VERSION="$(grep -m1 -A1 ^$src_pkg$ $INCOMING_REPOSITORY/packages.txt | \
 						tail -1 | sed 's/ *//')"
-					cache_pkg_VERSION="$(grep -m1 -A1 ^$PACKAGE$ $LOCALSTATE/packages.txt | \
+					cache_pkg_VERSION="$(grep -m1 -A1 ^$src_pkg$ $LOCALSTATE/packages.txt | \
 						tail -1 | sed 's/ *//')"
-					rwanted=$(grep $'\t'$PACKAGE$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
+					rwanted=$(grep $'\t'$src_pkg$ $CACHE/wok-wanted | cut -f 1)
 					
 					for wanted in $rwanted; do
 						if [ -f $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg ]; then
@@ -398,7 +411,7 @@ backup_pkg() {
 		fi
 		
 		[ -f $LOG/packages-gen-list.log ] && rm -f $LOG/packages-gen-list.log
-		[ -d $PKGISO_DIR ] && tazwok gen-list $PKGISO_DIR | tee -a $LOG/packages-gen-list.log
+		[ -d $PKGISO_DIR ] && cook pkgdb $PKGISO_DIR | tee -a $LOG/packages-gen-list.log
 	fi
 	
 }
@@ -409,26 +422,32 @@ backup_src() {
 		[ -d $SOURCES_REPOSITORY ] || mkdir -p $SOURCES_REPOSITORY
 		[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
 		mkdir -p $SRCISO_DIR
-		cat $ISODIR/cookorder.list | grep -v "^#"| while read pkg; do
-			#rwanted=$(grep $'\t'$pkg$ $INCOMING_REPOSITORY/wok-wanted.txt | cut -f 1)
-			for i in $(ls $WOK/$pkg/receipt); do
-				unset SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT WGET_URL KBASEVER
-				source $i
-				#{ [ ! "$TARBALL" ] || [ ! "$WGET_URL" ] ; } && continue
-				[ "$WGET_URL" ] || continue
-				if [ ! -f "$SOURCES_REPOSITORY/$TARBALL" ] && \
-					[ ! -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ]; then
-					tazwok get-src $PACKAGE --nounpack
-					if [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
-						ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
-					elif [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ]; then
-						ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma
-					fi
-				else
-					[ -f "$SOURCES_REPOSITORY/$TARBALL" ] && ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
-					[ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ] && ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma
+		cookorder=$ISODIR/cookorder.list
+		[ "$BACKUP_ALL" = "yes" ] && cookorder=$CACHE/fullco
+		[ -f $LOG/cook-getsrc.log ] && rm -rf $LOG/cook-getsrc.log
+		cat $cookorder | grep -v "^#"| while read pkg; do
+			if [ -f $PROFILE/list/backupall.banned ]; then
+				[ "$BACKUP_ALL" = "yes" ] && \
+					[ $(grep -l "^$pkg$" $PROFILE/list/backupall.banned) ] && continue
+			fi
+			unset SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT WGET_URL KBASEVER
+			[ -f $WOK/$pkg/receipt ] || continue
+			source $WOK/$pkg/receipt
+			[ "$TARBALL" ] || continue
+			#{ [ ! "$TARBALL" ] || [ ! "$WGET_URL" ] ; } && continue
+			[ "$WGET_URL" ] || continue
+			if [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ]; then
+				ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma
+			elif [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
+				ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
+			else
+				cook $PACKAGE --getsrc | tee -a $LOG/cook-getsrc.log
+				if [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
+					ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
+				elif [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ]; then
+					ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma
 				fi
-			done
+			fi
 		done
 		cd $SRCISO_DIR
 		info "Make md5sum file for sources"
@@ -436,14 +455,6 @@ backup_src() {
 		cd $WORKING
 	fi
 	
-}
-
-backup_all()
-{
-	if [ "${BACKUP_ALL}" = "yes" ]; then
-		[ -d $SRCISO_DIR ] || ln -sf $SOURCES_REPOSITORY $SRCISO_DIR
-		[ -d $PKGISO_DIR ] || ln -sf $PACKAGES_REPOSITORY $PKGISO_DIR
-	fi
 }
 
 # _mksquash dirname
@@ -542,8 +553,6 @@ imgcommon () {
 		backup_pkg
 		backup_src
 	fi
-	
-	backup_all
 	
 	info "====> Making bootable image"
 
