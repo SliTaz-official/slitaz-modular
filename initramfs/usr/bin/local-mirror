@@ -163,7 +163,7 @@ www() {
 			#	make install
 			#	cd $pwd
 			#fi
-			echo "$PKGDIR" > $LOCALSTATE/mirror
+			echo "$SLITAZ_DIR/$version/packages" > $LOCALSTATE/mirror
 			[ -d $LOCALSTATE/undigest/incoming ] || mkdir -p $LOCALSTATE/undigest/incoming
 			[ -f $LOCALSTATE/undigest/incoming/mirror ] || echo "$INCOMING" > $LOCALSTATE/undigest/incoming/mirror
 			echo "incoming" > $LOCALSTATE/priority
@@ -372,7 +372,9 @@ case "$COMMAND" in
 				echo "dhcp-option=option:router,$ROUTER_IP" >> /etc/dnsmasq.conf
 			fi
 		fi
-		echo "$PKGDIR" > $LOCALSTATE/mirror
+		if [ -d "$SLITAZ_DIR/$version/packages" ]; then
+			echo "$SLITAZ_DIR/$version/packages" > $LOCALSTATE/mirror
+		fi
 		if [ "$COMMAND" = "tank-only" ]; then
 			[ -f $VHOST_TANK_FILE ] && ln -sf $VHOST_TANK_FILE /etc/lighttpd/vhosts.conf
 		elif [ "$COMMAND" = "mirror-only" ]; then
