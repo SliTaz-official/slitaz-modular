@@ -50,8 +50,8 @@ LOCAL_REPOSITORY="$SLITAZ"
 PACKAGES_REPOSITORY="$PKGS"
 INCOMING_REPOSITORY="$INCOMING"
 SOURCES_REPOSITORY="$SRC"
-HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-boot-scripts slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-tiny wok-undigest"
-MY_HG_LIST="my-cookutils wok-tank"
+HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-tiny wok-undigest"
+MY_HG_LIST="slitaz-boot-scripts my-cookutils wok-tank"
 MY_HG_URL="https://bitbucket.org/godane"
 
 error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
@@ -328,15 +328,16 @@ backup_pkg() {
 			fi
 		done
 		cook gen-cooklist $ISODIR/packages-installed.list > $ISODIR/cookorder.list
-		[ -f $CACHE/fullco ] || cook gen-wok-db $WOK
+		[ -f $PKGS/fullco.txt ] || cook gen-wok-db $WOKHG
 		cookorder=$ISODIR/cookorder.list
-		[ "$BACKUP_ALL" = "yes" ] && cookorder=$CACHE/fullco
+		[ "$BACKUP_ALL" = "yes" ] && cookorder=$PKGS/fullco.txt
+		[ "$BACKUP_ALL" = "yes" ] && cp -a $cookorder $PKGISO_DIR/fullco.txt
 		CACHE_REPOSITORY="$CACHE_DIR/$(cat /etc/slitaz-release)/packages"
 
 		cat $cookorder | grep -v "^#" | while read pkg; do
 			[ -f "$WOK/$pkg/receipt" ] || continue
 			unset rwanted pkg_VERSION incoming_pkg_VERSION cache_pkg_VERSION
-			rwanted=$(grep $'\t'$pkg$ $CACHE/wok-wanted | cut -f 1)
+			rwanted=$(grep $'\t'$pkg$ $PKGS/wanted.txt | cut -f 1)
 			if [ -f $PROFILE/list/backupall.banned ]; then
 				[ "$BACKUP_ALL" = "yes" ] && \
 					[ $(grep -l "^$pkg$" $PROFILE/list/backupall.banned) ] && continue
@@ -387,7 +388,7 @@ backup_pkg() {
 						tail -1 | sed 's/ *//')"
 					cache_pkg_VERSION="$(grep -m1 -A1 ^$src_pkg$ $LOCALSTATE/packages.txt | \
 						tail -1 | sed 's/ *//')"
-					rwanted=$(grep $'\t'$src_pkg$ $CACHE/wok-wanted | cut -f 1)
+					rwanted=$(grep $'\t'$src_pkg$ $PKGS/wanted.txt | cut -f 1)
 					
 					for wanted in $rwanted; do
 						if [ -f $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg ]; then
@@ -423,7 +424,7 @@ backup_src() {
 		[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
 		mkdir -p $SRCISO_DIR
 		cookorder=$ISODIR/cookorder.list
-		[ "$BACKUP_ALL" = "yes" ] && cookorder=$CACHE/fullco
+		[ "$BACKUP_ALL" = "yes" ] && cookorder=$PKGS/fullco.txt
 		[ -f $LOG/cook-getsrc.log ] && rm -rf $LOG/cook-getsrc.log
 		cat $cookorder | grep -v "^#"| while read pkg; do
 			if [ -f $PROFILE/list/backupall.banned ]; then
@@ -431,11 +432,15 @@ backup_src() {
 					[ $(grep -l "^$pkg$" $PROFILE/list/backupall.banned) ] && continue
 			fi
 			unset SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT WGET_URL KBASEVER
+			unset pkg_VERSION
 			[ -f $WOK/$pkg/receipt ] || continue
 			source $WOK/$pkg/receipt
-			[ "$TARBALL" ] || continue
-			#{ [ ! "$TARBALL" ] || [ ! "$WGET_URL" ] ; } && continue
 			[ "$WGET_URL" ] || continue
+			[ "$TARBALL" ] || continue
+			pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $PKGISO_DIR/packages.txt | \
+				tail -1 | sed 's/ *//')"
+			[ -f "$PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg" ] || continue
+			#{ [ ! "$TARBALL" ] || [ ! "$WGET_URL" ] ; } && continue
 			if [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ]; then
 				ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma
 			elif [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
