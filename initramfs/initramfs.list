@@ -10,7 +10,6 @@ zlib
 lzlib
 depmod
 linux
-linux-udf
 attr
 libcap
 gettext-base
