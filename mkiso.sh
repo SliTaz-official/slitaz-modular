@@ -146,10 +146,10 @@ initramfs () {
 	[ -f $LOG/initramfs.log ] && rm -f $LOG/initramfs.log
 	cat "$BASEDIR/initramfs/initramfs.list" | grep -v "^#" | while read pkgname; do
 		if [ ! -f ${INITRAMFS}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
-			tazpkg get-install $pkgname --root=$INITRAMFS | tee -a $LOG/initramfs.log
+			tazpkg get-install $pkgname --root=$INITRAMFS 2>&1 | tee -a $LOG/initramfs.log
 			sleep 1
 		else
-			info "${pkgname} installed"
+			info "${pkgname} installed" | tee -a $LOG/initramfs.log
 		fi
 	done
 
@@ -222,10 +222,10 @@ slitaz_union () {
 			[ -f ${LOG}/${mod}-current.log ] && rm -f ${LOG}/${mod}-current.log
 			cat "$PROFILE/list/${mod}.list" | grep -v "^#" | while read pkgname; do
 				if [ ! -f ${UNION}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
-					tazpkg get-install $pkgname --root=${UNION} | tee -a ${LOG}/${mod}-current.log
+					tazpkg get-install $pkgname --root=${UNION} 2>&1 | tee -a ${LOG}/${mod}-current.log
 					sleep 1
 				else
-					info "${pkgname} installed"
+					info "${pkgname} installed" | tee -a ${LOG}/${mod}-current.log
 				fi
 			done
 		fi
@@ -234,7 +234,7 @@ slitaz_union () {
 			[ -f ${LOG}/${mod}-current-removelist.log ] && rm -f ${LOG}/${mod}-current-removelist.log
 			cat "$PROFILE/list/${mod}.removelist" | grep -v "^#" | while read pkgname; do
 				if [ -f ${UNION}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
-					echo "y" | tazpkg remove ${pkgname} --root=${UNION} | tee -a ${LOG}/${mod}-current-removelist.log
+					echo "y" | tazpkg remove ${pkgname} --root=${UNION} 2>&1 | tee -a ${LOG}/${mod}-current-removelist.log
 					sleep 1
 				else
 					info "${pkgname} removed"
