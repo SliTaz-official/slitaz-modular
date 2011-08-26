@@ -431,7 +431,7 @@ backup_src() {
 				[ "$BACKUP_ALL" = "yes" ] && \
 					[ $(grep -l "^$pkg$" $PROFILE/list/backupall.banned) ] && continue
 			fi
-			unset SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT WGET_URL KBASEVER
+			unset PATCH SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT WGET_URL KBASEVER
 			unset pkg_VERSION
 			[ -f $WOK/$pkg/receipt ] || continue
 			source $WOK/$pkg/receipt
@@ -441,6 +441,16 @@ backup_src() {
 				tail -1 | sed 's/ *//')"
 			[ -f "$PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg" ] || continue
 			#{ [ ! "$TARBALL" ] || [ ! "$WGET_URL" ] ; } && continue
+			if [ "$PATCH" ]; then
+				if [ -f "$SOURCES_REPOSITORY/$(basename $PATCH)" ]; then
+					ln -sf $SOURCES_REPOSITORY/$(basename $PATCH) $SRCISO_DIR/$(basename $PATCH)
+				else
+					cook $PACKAGE --getsrc | tee -a $LOG/cook-getsrc.log
+					if [ -f "$SOURCES_REPOSITORY/$(basename $PATCH)" ]; then
+						ln -sf $SOURCES_REPOSITORY/$(basename $PATCH) $SRCISO_DIR/$(basename $PATCH)
+					fi
+				fi
+			fi
 			if [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ]; then
 				ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma
 			elif [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
