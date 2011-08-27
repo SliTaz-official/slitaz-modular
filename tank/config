@@ -1,0 +1,30 @@
+
+# names of modular package lists
+# equals names of .list files in the order to build
+#MODULES="a.000.base a.001.justx a.002.core-basic a.003.core a.004.firefox a.005.core-xfce"
+BASE_MODULES="a.001.core a.002.firefox a.003.server a.004.xorg-extra a.005.libs 
+a.006.apps a.007.gimp-help"
+#MODULES=""
+
+# download local copies of hg repos for iso
+# equals yes or no 
+COPY_HG="yes"
+
+# update existing local copies of hg repos for iso in working folder
+# equals yes or no
+UPDATE_HG="yes"
+
+#HG_URL="https://bitbucket.org/gokhlayeh"
+
+# clean modules folders by removing them
+# equals yes or no
+CLEAN_MODULES_DIR="yes"
+
+# remove initramfs folder
+# equals yes or no
+CLEAN_INITRAMFS="yes"
+
+SRC_PKG="no"
+BACKUP_ALL="yes"
+BACKUP_PACKAGES="yes"
+BACKUP_SOURCES="yes"
