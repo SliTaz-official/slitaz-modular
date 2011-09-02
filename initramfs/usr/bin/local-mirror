@@ -395,7 +395,10 @@ case "$COMMAND" in
 				else
 					echo "$IP_ADDR $hostname" >> /etc/hosts
 				fi
-		done		
+		done
+		if [ ! -L /usr/share/awstats/icon/other/slitaz-spider-48x48.png ]; then
+			ln -s /repos/website/images/artwork/slitaz-spider-48x48.png /usr/share/awstats/icon/other/slitaz-spider-48x48.png
+		fi
 		if [ "$IP_ADDR" != "127.0.0.1" ]; then
 			if [ ! $(grep -l "dhcp-option=option:router,$ROUTER_IP" /etc/dnsmasq.conf) ]; then
 				echo "$IP_ADDR tazpanel tazpanel.slitaz.org" >> /etc/hosts
