@@ -50,7 +50,7 @@ LOCAL_REPOSITORY="$SLITAZ"
 PACKAGES_REPOSITORY="$PKGS"
 INCOMING_REPOSITORY="$INCOMING"
 SOURCES_REPOSITORY="$SRC"
-HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-tiny wok-undigest"
+HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-configs slitaz-dev-tools slitaz-doc slitaz-doc-wiki-data slitaz-forge slitaz-modular slitaz-pizza slitaz-tools ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-stable wok-tiny wok-undigest"
 MY_HG_LIST="slitaz-boot-scripts my-cookutils wok-tank"
 MY_HG_URL="https://bitbucket.org/godane"
 
