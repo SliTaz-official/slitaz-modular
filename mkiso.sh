@@ -318,6 +318,7 @@ union () {
 backup_pkg() {
 	if [ "${BACKUP_PACKAGES}" = "yes" ]; then
 		[ -d $PKGISO_DIR ] && rm -r $PKGISO_DIR
+		[ -f $LOG/backup_pkg.log ] && rm -rf $LOG/backup_pkg.log
 		mkdir -p $PKGISO_DIR
 		info "Making cooking list based installed packages in union"
 		# this is to filter out packages build by get- 
@@ -351,22 +352,28 @@ backup_pkg() {
 			for wanted in $rwanted; do
 				if [ -f $PROFILE/list/backupall.banned ]; then
 					[ "$BACKUP_ALL" = "yes" ] && \
-						[ $(grep -l "^$wamted$" $PROFILE/list/backupall.banned) ] && continue
+						[ $(grep -l "^$wanted$" $PROFILE/list/backupall.banned) ] && continue
 				fi
 				if [ -f $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg ]; then
+					info "Backing up $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg" | tee -a $LOG/backup_pkg.log
 					ln -sf $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$incoming_pkg_VERSION.tazpkg
 				elif [ -f $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg ]; then
+					info "Backing up $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg" | tee -a $LOG/backup_pkg.log
 					ln -sf $PACKAGES_REPOSITORY/$wanted-$pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$pkg_VERSION.tazpkg
 				elif [ -f $CACHE_REPOSITORY/$Wanted-$cache_pkg_VERSION.tazpkg ]; then
+					info "Backing up $CACHE_REPOSITORY/$wanted-$cache_pkg_VERSION.tazpkg" | tee -a $LOG/backup_pkg.log
 					ln -sf $CACHE_REPOSITORY/$wanted-$cache_pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$cache_pkg_VERSION.tazpkg
 				fi
 			done
-
+			
 			if [ -f $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg ]; then
+				info "Backing up $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg" | tee -a $LOG/backup_pkg.log
 				ln -sf $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$pkg-$incoming_pkg_VERSION.tazpkg
 			elif [ -f $PACKAGES_REPOSITORY/$pkg-$pkg_VERSION.tazpkg ]; then
+				info "Backing up $PACKAGES_REPOSITORY/$pkg-$pkg_VERSION.tazpkg" | tee -a $LOG/backup_pkg.log
 				ln -sf $PACKAGES_REPOSITORY/$pkg-$pkg_VERSION.tazpkg $PKGISO_DIR/$pkg-$pkg_VERSION.tazpkg
 			elif [ -f $CACHE_REPOSITORY/$pkg-$cache_pkg_VERSION.tazpkg ]; then
+				info "Backing up $CACHE_REPOSITORY/$pkg-$cache_pkg_VERSION.tazpkg" | tee -a $LOG/backup_pkg.log
 				ln -sf $CACHE_REPOSITORY/$pkg-$cache_pkg_VERSION.tazpkg $PKGISO_DIR/$pkg-$cache_pkg_VERSION.tazpkg
 			fi
 		done
@@ -426,6 +433,7 @@ backup_src() {
 		cookorder=$ISODIR/cookorder.list
 		[ "$BACKUP_ALL" = "yes" ] && cookorder=$PKGS/fullco.txt
 		[ -f $LOG/cook-getsrc.log ] && rm -rf $LOG/cook-getsrc.log
+		[ -f $LOG/backup_src.log ] && rm -rf $LOG/backup_src.log
 		cat $cookorder | grep -v "^#"| while read pkg; do
 			if [ -f $PROFILE/list/backupall.banned ]; then
 				[ "$BACKUP_ALL" = "yes" ] && \
@@ -441,26 +449,33 @@ backup_src() {
 				tail -1 | sed 's/ *//')"
 			[ -f "$PKGISO_DIR/$PACKAGE-$pkg_VERSION.tazpkg" ] || continue
 			#{ [ ! "$TARBALL" ] || [ ! "$WGET_URL" ] ; } && continue
+			LZMA_TARBALL="${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma"
 			if [ "$PATCH" ]; then
 				if [ -f "$SOURCES_REPOSITORY/$(basename $PATCH)" ]; then
+					info "Backing up $SOURCES_REPOSITORY/$(basename $PATCH)" | tee -a $LOG/backup_src.log
 					ln -sf $SOURCES_REPOSITORY/$(basename $PATCH) $SRCISO_DIR/$(basename $PATCH)
 				else
 					cook $PACKAGE --getsrc | tee -a $LOG/cook-getsrc.log
 					if [ -f "$SOURCES_REPOSITORY/$(basename $PATCH)" ]; then
+						info "Backing up $SOURCES_REPOSITORY/$(basename $PATCH)" | tee -a $LOG/backup_src.log
 						ln -sf $SOURCES_REPOSITORY/$(basename $PATCH) $SRCISO_DIR/$(basename $PATCH)
 					fi
 				fi
 			fi
-			if [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ]; then
-				ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma
+			if [ -f "$SOURCES_REPOSITORY/$LZMA_TARBALL" ]; then
+				info "Backing up $SOURCES_REPOSITORY/$LZMA_TARBALL" | tee -a $LOG/backup_src.log
+				ln -sf $SOURCES_REPOSITORY/$LZMA_TARBALL $SRCISO_DIR/$LZMA_TARBALL
 			elif [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
+				info "Backing up $SOURCES_REPOSITORY/$TARBALL" | tee -a $LOG/backup_src.log
 				ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
 			else
 				cook $PACKAGE --getsrc | tee -a $LOG/cook-getsrc.log
 				if [ -f "$SOURCES_REPOSITORY/$TARBALL" ]; then
+					info "Backing up $SOURCES_REPOSITORY/$TARBALL" | tee -a $LOG/backup_src.log
 					ln -sf $SOURCES_REPOSITORY/$TARBALL $SRCISO_DIR/$TARBALL
-				elif [ -f "$SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma" ]; then
-					ln -sf $SOURCES_REPOSITORY/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma $SRCISO_DIR/${SOURCE:-$PACKAGE}-${KBASEVER:-$VERSION}.tar.lzma
+				elif [ -f "$SOURCES_REPOSITORY/$LZMA_TARBALL" ]; then
+					info "Backing up $SOURCES_REPOSITORY/$LZMA_TARBALL" | tee -a $LOG/backup_src.log
+					ln -sf $SOURCES_REPOSITORY/$LZMA_TARBALL $SRCISO_DIR/$LZMA_TARBALL
 				fi
 			fi
 		done
