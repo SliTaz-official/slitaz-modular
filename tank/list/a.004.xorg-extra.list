@@ -26,7 +26,7 @@ xorg-xf86-video-savage
 xorg-xf86-video-sis
 xorg-xf86-video-trident
 xorg-xf86-video-v4l
-xorg-xf86-video-vmware
+#xorg-xf86-video-vmware
 #xorg-input
 xorg-xf86-input-elographics
 xorg-xf86-input-evtouch
@@ -36,5 +36,5 @@ xorg-xf86-input-mouse
 xorg-xf86-input-mutouch
 #xorg-xf86-input-plpevtch
 xorg-xf86-input-synaptics
-xorg-xf86-input-vmmouse
+#xorg-xf86-input-vmmouse
 xorg-xf86-input-void
