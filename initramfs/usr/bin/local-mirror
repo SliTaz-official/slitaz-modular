@@ -181,6 +181,7 @@ www() {
 			[ -f /usr/share/cook/header.html ] && cp -a /usr/share/cook/header.html $MAIN_WWW_DIR/cook/header.html
 			if [ "$MKCHROOT" = "yes" ]; then
 				if [ -d $PKGDIR ]; then
+					tazpkg recharge
 					tazdev gen-chroot $version
 					[ -d $SLITAZ_DIR/$version/chroot ] && mkdir -p $SLITAZ_DIR/$version/chroot$(dirname $CRON_FILE)
 					[ -d $SLITAZ_DIR/$version/chroot ] && echo "0 */2 * * * /usr/bin/cooker" > $SLITAZ_DIR/$version/chroot${CRON_FILE}
@@ -197,15 +198,15 @@ www() {
 		pkgs)
 			[ -d $MAIN_WWW_DIR/pkgs ] || mkdir -p $MAIN_WWW_DIR/pkgs
 			pwd=$(pwd)
-			if [ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web ]; then
-				cd $REPOS_DIR/slitaz-dev-tools/tazpkg-web
-				make install
-				cd $pwd
-			fi
-			#[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
-			#[ -f /var/lib/tazpkg-web/search.cgi ] && cp -a /var/lib/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
-			[ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
-			[ -f $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
+			#if [ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web ]; then
+			#	cd $REPOS_DIR/slitaz-dev-tools/tazpkg-web
+			#	make install
+			#	cd $pwd
+			#fi
+			[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
+			[ -f /var/lib/tazpkg-web/search.cgi ] && cp -a /var/lib/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
+			#[ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
+			#[ -f $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
 			[ -d $REPOS_DIR/flavors ] && ln -sf $REPOS_DIR/flavors $COOKING/flavors
 			#[ -d $REPOS_DIR/flavors-stable ] && ln -sf $REPOS_DIR/flavors-stable $STABLE/flavors
 			#[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
@@ -262,7 +263,10 @@ www() {
 		hg)
 			[ -d $MAIN_WWW_DIR/hg ] || mkdir -p $MAIN_WWW_DIR/hg
 			[ -f /usr/share/examples/mercurial/hgwebdir.cgi ] && cp -a /usr/share/examples/mercurial/hgwebdir.cgi $MAIN_WWW_DIR/hg
-			[ -f $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config ] && cp -a $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config /etc/mercurial/hgweb.config
+			[ -f /usr/share/examples/mercurial/hgwebdir.cgi ] && cp -a /usr/share/examples/mercurial/hgwebdir.cgi $MAIN_WWW_DIR/hg/hgwebdir.py
+			[ -f $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config ] && cp -a $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config /etc/mercurial
+			[ -f $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config-mirror ] && cp -a $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config-mirror /etc/mercurial
+			sed -i 's|/etc/mercurial/hgweb.config|/etc/mercurial/hgweb.config-mirror|g' $MAIN_WWW_DIR/hg/hgwebdir.py
 			#[ -f /etc/mercurial/hgweb.conf ] && sed -i 's|style = slitaz|style = gitweb|g' /etc/mercurial/hgweb.config
 		;;
 		lfs)
