@@ -145,7 +145,7 @@ initramfs () {
 	info "Making bootable image"
 	[ -f $LOG/initramfs.log ] && rm -f $LOG/initramfs.log
 	cat "$BASEDIR/initramfs/initramfs.list" | grep -v "^#" | while read pkgname; do
-		if [ ! -f ${INITRAMFS}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
+		if [ ! -f ${INITRAMFS}${INSTALLED}/${pkgname}/files.list ]; then
 			tazpkg get-install $pkgname --root=$INITRAMFS 2>&1 | tee -a $LOG/initramfs.log
 			sleep 1
 		else
@@ -215,13 +215,13 @@ squashfs_hg() {
 
 slitaz_union () {
 
-	if [ -d ${MODULES_DIR}/${mod}/var/lib/tazpkg/installed ]; then
+	if [ -d ${MODULES_DIR}/${mod}${INSTALLED} ]; then
 		echo "${mod} module exist. Moving on."
-	elif [ ! -d ${MODULES_DIR}/${mod}/var/lib/tazpkg/installed ]; then
+	elif [ ! -d ${MODULES_DIR}/${mod}${INSTALLED} ]; then
 		if [ -f "$PROFILE/list/${mod}.list" ]; then
 			[ -f ${LOG}/${mod}-current.log ] && rm -f ${LOG}/${mod}-current.log
 			cat "$PROFILE/list/${mod}.list" | grep -v "^#" | while read pkgname; do
-				if [ ! -f ${UNION}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
+				if [ ! -f ${UNION}${INSTALLED}/${pkgname}/files.list ]; then
 					tazpkg get-install $pkgname --root=${UNION} 2>&1 | tee -a ${LOG}/${mod}-current.log
 					sleep 1
 				else
@@ -233,7 +233,7 @@ slitaz_union () {
 		if [ -f $PROFILE/list/${mod}.removelist ]; then
 			[ -f ${LOG}/${mod}-current-removelist.log ] && rm -f ${LOG}/${mod}-current-removelist.log
 			cat "$PROFILE/list/${mod}.removelist" | grep -v "^#" | while read pkgname; do
-				if [ -f ${UNION}/var/lib/tazpkg/installed/${pkgname}/files.list ]; then
+				if [ -f ${UNION}${INSTALLED}/${pkgname}/files.list ]; then
 					echo "y" | tazpkg remove ${pkgname} --root=${UNION} 2>&1 | tee -a ${LOG}/${mod}-current-removelist.log
 					sleep 1
 				else
@@ -334,15 +334,12 @@ backup_pkg() {
 		[ "$BACKUP_ALL" = "yes" ] && cookorder=$PKGS/fullco.txt
 		[ "$BACKUP_ALL" = "yes" ] && cp -a $cookorder $PKGISO_DIR/fullco.txt
 		CACHE_REPOSITORY="$CACHE_DIR/$(cat /etc/slitaz-release)/packages"
-
+		[ -f $PROFILE/list/backupall.banned ] && cp -a $PROFILE/list/backupall.banned $ISODIR/blocked
+		
 		cat $cookorder | grep -v "^#" | while read pkg; do
 			[ -f "$WOK/$pkg/receipt" ] || continue
 			unset rwanted pkg_VERSION incoming_pkg_VERSION cache_pkg_VERSION
 			rwanted=$(grep $'\t'$pkg$ $PKGS/wanted.txt | cut -f 1)
-			if [ -f $PROFILE/list/backupall.banned ]; then
-				[ "$BACKUP_ALL" = "yes" ] && \
-					[ $(grep -l "^$pkg$" $PROFILE/list/backupall.banned) ] && continue
-			fi
 			pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $PACKAGES_REPOSITORY/packages.txt | \
 				tail -1 | sed 's/ *//')"
 			incoming_pkg_VERSION="$(grep -m1 -A1 ^$pkg$ $INCOMING_REPOSITORY/packages.txt | \
@@ -351,8 +348,9 @@ backup_pkg() {
 					tail -1 | sed 's/ *//')"
 			for wanted in $rwanted; do
 				if [ -f $PROFILE/list/backupall.banned ]; then
-					[ "$BACKUP_ALL" = "yes" ] && \
+					if [ "$BACKUP_ALL" = "yes" ]; then
 						[ $(grep -l "^$wanted$" $PROFILE/list/backupall.banned) ] && continue
+					fi
 				fi
 				if [ -f $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg ]; then
 					info "Backing up $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg" | tee -a $LOG/backup_pkg.log
@@ -366,6 +364,12 @@ backup_pkg() {
 				fi
 			done
 			
+			if [ -f $PROFILE/list/backupall.banned ]; then
+				if [ "$BACKUP_ALL" = "yes" ]; then
+					[ $(grep -l "^$pkg$" $PROFILE/list/backupall.banned) ] && continue
+				fi
+			fi
+				
 			if [ -f $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg ]; then
 				info "Backing up $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg" | tee -a $LOG/backup_pkg.log
 				ln -sf $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$pkg-$incoming_pkg_VERSION.tazpkg
@@ -436,8 +440,9 @@ backup_src() {
 		[ -f $LOG/backup_src.log ] && rm -rf $LOG/backup_src.log
 		cat $cookorder | grep -v "^#"| while read pkg; do
 			if [ -f $PROFILE/list/backupall.banned ]; then
-				[ "$BACKUP_ALL" = "yes" ] && \
+				if [ "$BACKUP_ALL" = "yes" ]; then
 					[ $(grep -l "^$pkg$" $PROFILE/list/backupall.banned) ] && continue
+				fi
 			fi
 			unset PATCH SOURCE TARBALL WANTED PACKAGE VERSION COOK_OPT WGET_URL KBASEVER
 			unset pkg_VERSION
@@ -532,14 +537,14 @@ _mksquash () {
 imgcommon () {
 	for MOD in ${BASE_MODULES}; do
 		if [ -d "${MODULES_DIR}/${MOD}" ]; then
-			_mksquash "${MODULES_DIR}/${MOD}" "$ISODIR/$CDNAME/base" /var/lib/tazpkg/installed
+			_mksquash "${MODULES_DIR}/${MOD}" "$ISODIR/$CDNAME/base" $INSTALLED
 		fi
 	done
 	
 	if [ "${MODULES}" != "" ]; then
 		for MOD in ${MODULES}; do
 			if [ -d "${MODULES_DIR}/${MOD}" ]; then
-				_mksquash "${MODULES_DIR}/${MOD}" "$ISODIR/$CDNAME/modules" /var/lib/tazpkg/installed
+				_mksquash "${MODULES_DIR}/${MOD}" "$ISODIR/$CDNAME/modules" $INSTALLED
 			fi
 		done
 	fi
