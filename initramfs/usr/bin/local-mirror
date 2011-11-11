@@ -18,9 +18,9 @@ usage() {
 
 #[ -d /mnt/live/memory/mirror/packages ] && PKGDIR="/mnt/live/memory/mirror/packages"
 #[ -d /mnt/live/memory/mirror/src ] && SRCDIR="/mnt/live/memory/mirror/src"
-sync_mirror=$(find /mnt/live -name "mirror" -type d -maxdepth 3 | head -1)
+sync_mirror=$(find /mnt/live -maxdepth 3 -name "mirror" -type d | head -1)
 
-COOKORDER="$(find /mnt/live/mnt/* -name "cookorder.list" -maxdepth 1)"
+COOKORDER="$(find /mnt/live/mnt/* -maxdepth 1 -name "cookorder.list")"
 CUR_PWD="$PWD"
 version="$(cat /etc/slitaz-release)"
 
@@ -238,7 +238,7 @@ www() {
 			#[ -d $REPOS_DIR/website/pics ] && ln -sf $REPOS_DIR/website/images $MAIN_WWW_DIR/$b/images
 		;;
 		tank)
-			[ -d $TANK_WWW_DIR ] && ln -sf $TANK_WWW_DIR $MAIN_WWW_DIR/$b
+			[ -d $TANK_WWW_DIR ] && cp -a $TANK_WWW_DIR $MAIN_WWW_DIR/$b
 			[ -f /usr/share/awstats/extras/update ] && ln -sf /usr/share/awstats/extras/update /usr/sbin/awsupdate_all
 			[ -d $REPOS_DIR/slitaz-forge/$b/files/etc/awstats ] && cp -a $REPOS_DIR/slitaz-forge/$b/files/etc/awstats/* /etc/awstats
 			for i in $ADDRESS; do
@@ -412,7 +412,7 @@ case "$COMMAND" in
 				fi
 		done
 		if [ ! -L /usr/share/awstats/icon/other/slitaz-spider-48x48.png ]; then
-			ln -s /repos/website/images/artwork/slitaz-spider-48x48.png /usr/share/awstats/icon/other/slitaz-spider-48x48.png
+			ln -s $REPOS_DIR/website/images/artwork/slitaz-spider-48x48.png /usr/share/awstats/icon/other/slitaz-spider-48x48.png
 		fi
 		if [ "$IP_ADDR" != "127.0.0.1" ]; then
 			if [ ! $(grep -l "dhcp-option=option:router,$ROUTER_IP" /etc/dnsmasq.conf) ]; then
