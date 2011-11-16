@@ -226,10 +226,12 @@ www() {
 			[ -d $PKGDIR ] && ln -sf $PKGDIR $MAIN_WWW_DIR/slitaz/mirror/packages/$version
 			[ -d /var/www/slitaz ] || ln -sf $MAIN_WWW_DIR/slitaz /var/www/slitaz
 			[ -d /var/www/mirror-info ] || ln -sf $MAIN_WWW_DIR/mirror-info /var/www/mirror-info
-			if [ -f /var/www/mirror-info/bin/makegraphs ]; then
-				if [ ! $(grep -l "/var/www/mirror-info/bin/makegraphs" $CRON_FILE) ]; then
-					echo "# Update mirror system load graphics" >> $CRON_FILE
-					echo "*/5 * * * * /var/www/mirror-info/bin/makegraphs" >> $CRON_FILE
+			[ -d $MAIN_WWW_DIR/mirror-info/pics ] || mkdir -p $MAIN_WWW_DIR/mirror-info/pics
+			[ -d $MAIN_WWW_DIR/mirror-info/pics/rrd ] || ln -sf $MAIN_WWW_DIR/pics/rrd $MAIN_WWW_DIR/mirror-info/pics/rrd
+			if [ -f /usr/bin/makegraphs ]; then
+				if [ ! $(grep -l "/usr/bin/makegraphs" $CRON_FILE) ]; then
+					echo "# Update system load graphics" >> $CRON_FILE
+					echo "*/5 * * * * /usr/bin/makegraphs" >> $CRON_FILE
 				fi
 			fi
 		;;
@@ -247,16 +249,18 @@ www() {
 					mkdir -p $dirlog
 				fi
 			done
+			[ -d $MAIN_WWW_DIR/$b/pics ] || mkdir -p $MAIN_WWW_DIR/$b/pics
+			[ -d $MAIN_WWW_DIR/$b/pics/rrd ] || ln -sf $MAIN_WWW_DIR/pics/rrd $MAIN_WWW_DIR/$b/pics/rrd
 			if [ -f /usr/share/awstats/extras/update ]; then
 				if [ ! $(grep -l "/usr/share/awstats/extras/update" $CRON_FILE) ]; then
 					echo "# Update Web stats" >> $CRON_FILE
 					echo "*/5 * * * * /usr/share/awstats/extras/update" >> $CRON_FILE
 				fi
 			fi
-			if [ -f $MAIN_WWW_DIR/tank/bin/makegraphs ]; then
-				if [ ! $(grep -l "$MAIN_WWW_DIR/tank/bin/makegraphs" $CRON_FILE) ]; then
-					echo "# Update tank system load graphics" >> $CRON_FILE
-					echo "*/5 * * * * $MAIN_WWW_DIR/tank/bin/makegraphs" >> $CRON_FILE
+			if [ -f /usr/bin/makegraphs ]; then
+				if [ ! $(grep -l "/usr/bin/makegraphs" $CRON_FILE) ]; then
+					echo "# Update system load graphics" >> $CRON_FILE
+					echo "*/5 * * * * /usr/bin/makegraphs" >> $CRON_FILE
 				fi
 			fi
 		;;
@@ -430,8 +434,9 @@ case "$COMMAND" in
 		else
 			[ -f $VHOST_FILE ] && ln -sf $VHOST_FILE /etc/lighttpd/vhosts.conf
 		fi
-		chown -R www.www $SLITAZ_DIR/www
-		up_src_links
+		[ -d $MAIN_WWW_DIR/pics/rrd ] || mkdir -p $MAIN_WWW_DIR/pics/rrd
+		chown -R www.www $MAIN_WWW_DIR
+		up_src_links		
 		[ -x /etc/init.d/lighttpd ] && /etc/init.d/lighttpd start
 		[ -x /etc/init.d/crond ] && /etc/init.d/crond start
 		;;
