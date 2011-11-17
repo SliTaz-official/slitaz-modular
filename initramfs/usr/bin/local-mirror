@@ -229,9 +229,10 @@ www() {
 			[ -d $MAIN_WWW_DIR/mirror-info/pics ] || mkdir -p $MAIN_WWW_DIR/mirror-info/pics
 			[ -d $MAIN_WWW_DIR/mirror-info/pics/rrd ] || ln -sf $MAIN_WWW_DIR/pics/rrd $MAIN_WWW_DIR/mirror-info/pics/rrd
 			if [ -f /usr/bin/makegraphs ]; then
-				if [ ! $(grep -l "/usr/bin/makegraphs" $CRON_FILE) ]; then
+				[ -f $MAIN_WWW_DIR/pics/makegraphs ] || cp -a /usr/bin/makegraphs $MAIN_WWW_DIR/pics/makegraphs
+				if [ ! $(grep -l "$MAIN_WWW_DIR/pics/makegraphs" $CRON_FILE) ]; then
 					echo "# Update system load graphics" >> $CRON_FILE
-					echo "*/5 * * * * /usr/bin/makegraphs" >> $CRON_FILE
+					echo "*/5 * * * * $MAIN_WWW_DIR/pics/makegraphs" >> $CRON_FILE
 				fi
 			fi
 		;;
@@ -258,9 +259,10 @@ www() {
 				fi
 			fi
 			if [ -f /usr/bin/makegraphs ]; then
-				if [ ! $(grep -l "/usr/bin/makegraphs" $CRON_FILE) ]; then
+				[ -f $MAIN_WWW_DIR/pics/makegraphs ] || cp -a /usr/bin/makegraphs $MAIN_WWW_DIR/pics/makegraphs
+				if [ ! $(grep -l "$MAIN_WWW_DIR/pics/makegraphs" $CRON_FILE) ]; then
 					echo "# Update system load graphics" >> $CRON_FILE
-					echo "*/5 * * * * /usr/bin/makegraphs" >> $CRON_FILE
+					echo "*/5 * * * * $MAIN_WWW_DIR/pics/makegraphs" >> $CRON_FILE
 				fi
 			fi
 		;;
