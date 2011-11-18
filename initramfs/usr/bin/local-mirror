@@ -87,7 +87,8 @@ www() {
 	fi
 	[ -d $STABLE ] || mkdir -p $STABLE
 	[ -d $COOKING ] || mkdir -p $COOKING
-
+	[ -d $MAIN_WWW_DIR/pics/rrd ] || mkdir -p $MAIN_WWW_DIR/pics/rrd
+	
 	case "$b" in
 		website)
 			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $MAIN_WWW_DIR
@@ -177,8 +178,9 @@ www() {
 			[ -f $LOCALSTATE/undigest/incoming/mirror ] || echo "$INCOMING" > $LOCALSTATE/undigest/incoming/mirror
 			echo "incoming" > $LOCALSTATE/priority
 			[ -d $SLITAZ_DIR/$version/incoming ] || mkdir -p $SLITAZ_DIR/$version/incoming
-			[ -d /var/www/cooker ] && cp -a /var/www/cooker $MAIN_WWW_DIR/cook
-			[ -f /usr/share/cook/header.html ] && cp -a /usr/share/cook/header.html $MAIN_WWW_DIR/cook/header.html
+			[ -d /var/www/cooker ] && cp -a /var/www/cooker $MAIN_WWW_DIR/$b
+			[ -f /usr/share/$b/header.html ] && cp -a /usr/share/$b/header.html $MAIN_WWW_DIR/$b/header.html
+			[ -f /etc/slitaz/$b.conf ] && cp -a /etc/slitaz/$b.conf $MAIN_WWW_DIR/$b/$b.conf
 			if [ "$MKCHROOT" = "yes" ]; then
 				if [ -d $PKGDIR ]; then
 					tazpkg recharge
@@ -192,8 +194,8 @@ www() {
 			fi
 			[ -d $REPOS_DIR/wok-tank ] && ln -sf $REPOS_DIR/wok-tank $SLITAZ_DIR/$version/wok-hg
 			#[ -d $REPOS_DIR/wok-tank ] && ln -sf $REPOS_DIR/wok-tank $SLITAZ_DIR/$version/wok
-			[ -d $MAIN_WWW_DIR/cook/packages ] || ln -sf $SLITAZ_DIR/$version/packages $MAIN_WWW_DIR/cook/packages
-			[ -d $MAIN_WWW_DIR/cook/incoming ] || ln -sf $SLITAZ_DIR/$version/incoming $MAIN_WWW_DIR/cook/incoming
+			[ -d $MAIN_WWW_DIR/$b/packages ] || ln -sf $SLITAZ_DIR/$version/packages $MAIN_WWW_DIR/$b/packages
+			[ -d $MAIN_WWW_DIR/$b/incoming ] || ln -sf $SLITAZ_DIR/$version/incoming $MAIN_WWW_DIR/$b/incoming
 		;;
 		pkgs)
 			[ -d $MAIN_WWW_DIR/pkgs ] || mkdir -p $MAIN_WWW_DIR/pkgs
