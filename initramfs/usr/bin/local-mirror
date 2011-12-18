@@ -287,6 +287,10 @@ www() {
 			if [ -d /usr/share/absguide ]; then
 				[ -d $MAIN_WWW_DIR/absguide ] || ln -sf /usr/share/absguide $MAIN_WWW_DIR/absguide
 			fi ;;
+		man-html)
+			if [ -d /usr/share/man-html ]; then
+				[ -d $MAIN_WWW_DIR/man-html ] || ln -sf /usr/share/man-html $MAIN_WWW_DIR/man-html
+			fi ;;
 		gimp.en)
 			if [ -d /usr/share/gimp/2.0/help/en ]; then
 				[ -d $MAIN_WWW_DIR/gimp_en ] || ln -sf /usr/share/gimp/2.0/help/en $MAIN_WWW_DIR/gimp_en
@@ -298,6 +302,10 @@ www() {
 		gimp.es)
 			if [ -d /usr/share/gimp/2.0/help/es ]; then
 				[ -d $MAIN_WWW_DIR/gimp_es ] || ln -sf /usr/share/gimp/2.0/help/es $MAIN_WWW_DIR/gimp_es
+			fi ;;
+		linuxgazette)
+			if [ -d /repos/linuxgazette ]; then
+				[ -d $MAIN_WWW_DIR/linuxgazette ] || ln -sf /repos/linuxgazette $MAIN_WWW_DIR/linuxgazette
 			fi ;;
 	esac
 }
