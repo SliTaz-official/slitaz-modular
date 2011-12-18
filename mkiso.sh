@@ -5,12 +5,13 @@
 
 QUIET="y"
 FORCE="y"
-export LABEL="slitaz_$(date +%Y%m)"
 PUBLISHER="Slitaz"
 APPLICATION="Slitaz"
 CREATE_DEFAULT="n"
 BASEDIR="$(pwd)"
 PROFILE="$BASEDIR/$1"
+export LABEL="slitaz_$1_$(date +%F)"
+VOLUME_ID="$LABEL"
 ver=""
 CDNAME="slitaz"
 RMSTUFF=n
@@ -50,7 +51,7 @@ LOCAL_REPOSITORY="$SLITAZ"
 PACKAGES_REPOSITORY="$PKGS"
 INCOMING_REPOSITORY="$INCOMING"
 SOURCES_REPOSITORY="$SRC"
-HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-configs slitaz-dev-tools slitaz-doc slitaz-forge slitaz-modular slitaz-pizza slitaz-tools ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-stable wok-tiny wok-undigest"
+HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-configs slitaz-dev-tools slitaz-doc slitaz-forge slitaz-modular slitaz-pizza slitaz-tools slitaz-vz ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-stable wok-tiny wok-undigest"
 MY_HG_LIST="slitaz-doc-wiki-data slitaz-boot-scripts my-cookutils wok-tank"
 MY_HG_URL="https://bitbucket.org/godane"
 
@@ -438,7 +439,7 @@ backup_src() {
 		[ "$BACKUP_ALL" = "yes" ] && cookorder=$PKGS/fullco.txt
 		[ -f $LOG/cook-getsrc.log ] && rm -rf $LOG/cook-getsrc.log
 		[ -f $LOG/backup_src.log ] && rm -rf $LOG/backup_src.log
-		cat $cookorder | grep -v "^#"| while read pkg; do
+		cat $cookorder | grep -v "^#" | while read pkg; do
 			if [ -f $PROFILE/list/backupall.banned ]; then
 				if [ "$BACKUP_ALL" = "yes" ]; then
 					[ $(grep -l "^$pkg$" $PROFILE/list/backupall.banned) ] && continue
@@ -636,11 +637,11 @@ make_iso () {
 	fi
 
 	info "Creating ISO image..."
-	genisoimage -R -l -f -o $IMGNAME -b boot/isolinux/isolinux.bin \
+	genisoimage -R -l -f -V $VOLUME_ID -o $IMGNAME -b boot/isolinux/isolinux.bin \
 	-c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
 	-uid 0 -gid 0 \
 	-udf -allow-limited-size -iso-level 3 \
-	-V "SliTaz" -input-charset utf-8 -boot-info-table $ISODIR
+	-P $PUBLISHER -input-charset utf-8 -boot-info-table $ISODIR
 	if [ -x /usr/bin/isohybrid ]; then
 		info "Creating hybrid ISO..."
 		isohybrid "${IMGNAME}"
