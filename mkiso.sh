@@ -329,6 +329,7 @@ backup_pkg() {
 				sed -i "s|$pkg||g" $ISODIR/packages-installed.list
 			fi
 		done
+		local pkg wanted rwanted pkg_VERSION incoming_pkg_VERSION cache_pkg_VERSION
 		cook gen-cooklist $ISODIR/packages-installed.list > $ISODIR/cookorder.list
 		[ -f $PKGS/fullco.txt ] || cook gen-wok-db $WOKHG
 		cookorder=$ISODIR/cookorder.list
@@ -353,6 +354,7 @@ backup_pkg() {
 						[ $(grep -l "^$wanted$" $PROFILE/list/backupall.banned) ] && continue
 					fi
 				fi
+
 				if [ -f $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg ]; then
 					info "Backing up $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg" | tee -a $LOG/backup_pkg.log
 					ln -sf $INCOMING_REPOSITORY/$wanted-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$wanted-$incoming_pkg_VERSION.tazpkg
@@ -370,7 +372,7 @@ backup_pkg() {
 					[ $(grep -l "^$pkg$" $PROFILE/list/backupall.banned) ] && continue
 				fi
 			fi
-				
+			
 			if [ -f $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg ]; then
 				info "Backing up $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg" | tee -a $LOG/backup_pkg.log
 				ln -sf $INCOMING_REPOSITORY/$pkg-$incoming_pkg_VERSION.tazpkg $PKGISO_DIR/$pkg-$incoming_pkg_VERSION.tazpkg
@@ -435,6 +437,7 @@ backup_src() {
 		[ -d $SOURCES_REPOSITORY ] || mkdir -p $SOURCES_REPOSITORY
 		[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
 		mkdir -p $SRCISO_DIR
+		local pkg cookorder pkg_VERSION
 		cookorder=$ISODIR/cookorder.list
 		[ "$BACKUP_ALL" = "yes" ] && cookorder=$PKGS/fullco.txt
 		[ -f $LOG/cook-getsrc.log ] && rm -rf $LOG/cook-getsrc.log
