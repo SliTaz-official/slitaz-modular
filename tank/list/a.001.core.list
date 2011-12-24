@@ -48,7 +48,8 @@ glibc-base
 glibmm
 gparted
 gpxe
-grub4dos-linux
+#grub4dos-linux
+grub2
 gtk+
 gtkdialog
 gtkmm

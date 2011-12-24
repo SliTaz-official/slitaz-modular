@@ -33,3 +33,15 @@ rsnapshot
 openssl
 openssh
 ssfs-server
+bash
+iptables
+dhcp
+dhcp-client
+twisted
+sslstrip
+wget
+macchanger
+dsniff
+aircrack-ng
+shaarli
+man-pages-html
