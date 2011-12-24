@@ -294,7 +294,7 @@ www() {
 			#if [ -d /usr/share/man-html ]; then
 			#	[ -d $MAIN_WWW_DIR/man-html ] || ln -sf /usr/share/man-html $MAIN_WWW_DIR/man-html
 			#fi ;;
-			fake-website /usr/share/mam-html man-html.slitaz.org ;;
+			fake-website /usr/share/man-html man-html.slitaz.org ;;
 		gimp.en)
 			#if [ -d /usr/share/gimp/2.0/help/en ]; then
 			#	[ -d $MAIN_WWW_DIR/gimp_en ] || ln -sf /usr/share/gimp/2.0/help/en $MAIN_WWW_DIR/gimp_en
@@ -314,7 +314,7 @@ www() {
 			#if [ -d /repos/linuxgazette ]; then
 			#	[ -d $MAIN_WWW_DIR/linuxgazette ] || ln -sf /repos/linuxgazette $MAIN_WWW_DIR/linuxgazette
 			#fi ;;
-			fake-website /repos/linuxgazette linuxgazette.net
+			fake-website /repos/linuxgazette linuxgazette.net ;;
 	esac
 }
 

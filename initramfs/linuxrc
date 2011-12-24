@@ -11,6 +11,8 @@ ln -sf /proc/mounts /etc/mtab    # this allows us to use umount -a
 
 . /liblinuxlive # it requires proc to be mounted
 
+depmod -a
+
 # Don't print kernel messages to konsole now.
 # Syslog will reset printk settings, no need to remember it here anymore.
 echo "0" >/proc/sys/kernel/printk
