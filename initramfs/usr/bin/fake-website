@@ -1,0 +1,59 @@
+#!/bin/sh
+
+source /usr/lib/slitaz/libtaz
+source_lib commons
+check_root
+. /etc/slitaz/slitaz.conf
+. /etc/local-mirror.conf
+
+DIR="$1"
+WEB_ADDRESS="$2"
+VERSION="0.1"
+usage() {
+	echo "$0 $VERSION"
+	echo "$0 /path/to/fake/website fakewebsite.com"
+	echo "NOTE: Don't need http:// for fake website address"
+	exit 1 
+}
+
+[ ! -d "$DIR" ] && usage
+[ "$DIR" = "" -o "$WEB_ADDRESS" = "" ] && usage
+
+[ -d $MAIN_WWW_DIR ] || mkdir -p $MAIN_WWW_DIR
+if [ -d $DIR ]; then
+	[ -d $MAIN_WWW_DIR/$(basename $DIR) ] || ln -sf $DIR $MAIN_WWW_DIR/$(basename $DIR)
+fi
+
+if [ ! -f /etc/lighttpd/$WEB_ADDRESS.conf ]; then
+	cat > /etc/lighttpd/$WEB_ADDRESS.conf << EOF
+\$HTTP["host"] =~ "${WEB_ADDRESS}$" {
+  server.document-root = "$MAIN_WWW_DIR/$(basename $DIR)"
+  server.errorlog = "/var/log/lighttpd/${WEB_ADDRESS}-error.log"
+  accesslog.filename = "/var/log/lighttpd/${WEB_ADDRESS}-access.log"
+}
+EOF
+fi
+
+[ -d /var/lib/awstats/$WEB_ADDRESS ] || mkdir -p /var/lib/awstats/$WEB_ADDRESS
+if [ ! -f /etc/awstats/awstats.${WEB_ADDRESS}.conf ]; then
+	cat > /etc/awstats/awstats.${WEB_ADDRESS}.conf << EOF
+LogFile="/var/log/lighttpd/${WEB_ADDRESS}-access.log"
+SiteDomain="$WEB_ADDRESS"
+DirData="/var/lib/awstats/${WEB_ADDRESS}"
+LogoLink="http://${WEB_ADDRESS}"
+Include "/etc/awstats/awstats.optional.conf"
+EOF
+fi
+
+if [ ! $(grep -l "include \"$WEB_ADDRESS.conf\"" /etc/lighttpd/vhosts-local.conf) ]; then
+	echo "include \"$WEB_ADDRESS.conf\"" >> /etc/lighttpd/vhosts-local.conf
+fi
+
+if [ ! $(grep -l "$IP_ADDR $WEB_ADDRESS" /etc/hosts) ]; then
+	echo "$IP_ADDR $WEB_ADDRESS" >> /etc/hosts
+fi
+
+if [ ! -L /etc/lighttpd/vhosts.conf ]; then
+	ln -sf /etc/lighttpd/vhosts-local.conf /etc/lighttpd/vhosts.conf
+fi
+chown www.www -R $MAIN_WWW_DIR
