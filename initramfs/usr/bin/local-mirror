@@ -205,7 +205,7 @@ www() {
 			#	make install
 			#	cd $pwd
 			#fi
-			[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
+			[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style $MAIN_WWW_DIR/pkgs
 			[ -f /var/lib/tazpkg-web/search.cgi ] && cp -a /var/lib/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
 			#[ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
 			#[ -f $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
