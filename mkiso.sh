@@ -36,6 +36,7 @@ MODULES_DIR="$WORKING/modules"
 HG_DIR="$WORKING/hg"
 HG_URL="http://hg.slitaz.org"
 HG_PATH="repos"
+DONT_UPDATE_MIRROR="no"
 COPY_HG="no"
 UPDATE_HG="no"
 BACKUP_SOURCES="no"
@@ -580,17 +581,18 @@ imgcommon () {
 		fi
 	fi
 
-	[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
-	[ -d $PKGISO_DIR ] && rm -r $PKGISO_DIR
-	
-	if [ -d ${HG_DIR}/wok-tank/repos/wok-tank/.hg ]; then
-		WOK=${HG_DIR}/wok-tank/repos/wok-tank
-		backup_pkg
-		backup_src
-	elif [ -d ${HG_DIR}/wok/repos/wok/.hg ]; then
-		WOK=${HG_DIR}/wok/repos/wok
-		backup_pkg
-		backup_src
+	if [ "$DONT_UPDATE_MIRROR" = "no" ]; then
+		[ -d $SRCISO_DIR ] && rm -r $SRCISO_DIR
+		[ -d $PKGISO_DIR ] && rm -r $PKGISO_DIR	
+		if [ -d ${HG_DIR}/wok-tank/repos/wok-tank/.hg ]; then
+			WOK=${HG_DIR}/wok-tank/repos/wok-tank
+			backup_pkg
+			backup_src
+		elif [ -d ${HG_DIR}/wok/repos/wok/.hg ]; then
+			WOK=${HG_DIR}/wok/repos/wok
+			backup_pkg
+			backup_src
+		fi
 	fi
 	
 	info "====> Making bootable image"
