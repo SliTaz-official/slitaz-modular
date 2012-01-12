@@ -1,0 +1,1158 @@
+#!/bin/sh
+# slitaz-installer - SliTaz GNU/Linux installer.
+#
+# So this is the SliTaz installer using dialog boxes. All the comments are in
+# English but displayed messages are in French. The script starts with a
+# few main variables, then all the functions and then a sequence of functions.
+#
+# (C) 2007-2009 SliTaz - GNU General Public License v3.
+#
+# Author : Christophe Lincoln <pankso@slitaz.org>
+#
+VERSION=2.0
+
+: ${DIALOG=dialog}
+[ "$1" = "gui" ] && DIALOG=tazdialog
+
+# We need to know cdrom device and kernel version string to copy files.
+DRIVE_NAME=`cat /proc/sys/dev/cdrom/info | grep "drive name" | cut -f 3`
+[ -n "$DRIVE_NAME" ] || DRIVE_NAME=cdrom
+CDROM=/dev/$DRIVE_NAME
+KERNEL=vmlinuz-`uname -r`
+TARGET_ROOT=/mnt/target
+LOG=/var/log/slitaz-installer.log
+BACKLIST="SliTaz GNU/Linux installer"
+ACTION=$1
+[ -f /etc/slitaz/slitaz.conf ] && . /etc/slitaz/slitaz.conf
+
+#######################
+# Installer functions #
+#######################
+
+# Messages language setting.
+set_messages()
+{
+	if [ -s /usr/share/slitaz/messages/${LANG:0:2}/installer.msg ]; then
+		. /usr/share/slitaz/messages/${LANG:0:2}/installer.msg
+	else
+		. /usr/share/slitaz/messages/en/installer.msg
+	fi
+}
+
+# Display error message.
+error_message()
+{
+	$DIALOG --title " Error " \
+		--colors --backtitle "$BACKLIST" \
+		--clear --msgbox "\n$ERROR_MSG" 18 70
+}
+
+# Exit install if user is not root.
+check_root()
+{
+	if test $(id -u) != 0 ; then
+	ERROR_MSG="\
+[\Z6en\Zn] You must be root administrator to start SliTaz installer, please \
+use 'su' to get a root SHell and restart installation.\n\n
+[\Z6fr\Zn] Vous devez être root pour installer SLiTaz GNU/Linux. Vous pouvez \
+utiliser 'su' suivi du mot de passe administrateur pour devenir root \
+et relancer l'installation."
+		error_message
+		exit 0
+	fi
+}
+
+# This function is used after each screen to contine or abort install.
+check_retval()
+{
+	case $retval in
+		0)
+			continue ;;
+		1)
+			echo -e "\nVoluntary exit.\n" && exit 0 ;;
+		3)
+			continue ;;
+		255)
+			echo -e "ESC pressed.\n" && exit 0 ;;
+	esac
+}
+
+# Start install with basic information.
+start_installer()
+{
+	$DIALOG --title " Install or Upgrade " \
+		--backtitle "$BACKLIST" \
+		--extra-button --extra-label "Upgrade" \
+		--ok-label "Install" \
+		--clear --colors --yesno "$START_INSTALL_MSG" 18 70
+	retval=$?
+		case $retval in
+		0)
+			ACTION=install ;;
+		1)
+			echo -e "\nVoluntary exit.\n" && exit 0 ;;
+		3)
+			ACTION=upgrade ;;
+		255)
+			echo -e "ESC pressed.\n" && exit 0 ;;
+	esac
+	echo "start_installer: `date`" > $LOG
+}
+
+# Mount cdrom and verify if it's really SliTaz CD.
+mount_cdrom()
+{
+	ERROR_MSG=""
+	(
+	echo "XXX" && echo 30
+	echo -e "\nCreating mount point (/media/cdrom)..."
+	echo "XXX"
+	mkdir -p /media/cdrom
+	sleep 1
+	# First try to mount a cdrom
+	if mount -t udf $CDROM /media/cdrom 2>>$LOG; then
+		echo "XXX" && echo 60
+		echo -e "\nUsing files from cdrom ($CDROM)..."
+		echo "XXX"
+		sleep 2
+	# We may be in LiveUSB mode
+	elif [ -d /home/boot ]; then
+		echo "XXX" && echo 60
+		echo -e "\nUsing files from USB device..."
+		echo "XXX"
+		rm /media/cdrom/boot 2>/dev/null
+		ln -s /home/boot /media/cdrom/boot
+		sleep 2
+	# We may be in Tiny Web boot mode
+	elif [ -d /cdrom/boot ]; then
+		echo "XXX" && echo 60
+		echo -e "\nUsing files from HTTP device..."
+		echo "XXX"
+		rm /media/cdrom/boot 2>/dev/null
+		ln -s /cdrom/boot /media/cdrom/boot
+		sleep 2
+	fi
+
+	echo "XXX" && echo 90
+	echo -e "\nChecking installation media..."
+	echo "XXX"
+	sleep 2
+	) |
+	$DIALOG --title " Mounting cdrom " \
+		--backtitle "$BACKLIST" \
+		--gauge "Preparing the installation media..." 18 70 0
+	# Exit with error msg if no rootfs.gz found.
+	if [ ! -f /media/cdrom/boot/rootfs.gz -a \
+	     ! -f /media/cdrom/boot/rootfs1.gz ]; then
+		ERROR_MSG="$MOUNT_CDROM_ERROR_MSG"
+		error_message
+		echo "missing: /media/cdrom/boot/rootfs.gz" >>$LOG
+		exit 1
+	fi
+}
+
+# Display a list of available partitions.
+fdisk_list()
+{
+	LIST_PARTITIONS=`fdisk -l | grep ^/dev | sed s/'e Win95'/'e'/g`
+	$DIALOG --title " Partition tables " \
+		--backtitle "$BACKLIST" \
+		--clear --msgbox "\n
+Available partitions :\n\n
+$LIST_PARTITIONS" 18 70
+}
+
+# We need a partition to install to (inputbox).
+ask_for_target_dev()
+{
+	exec 3>&1
+	TARGET_DEV=`$DIALOG --title " Root Partition " \
+		--backtitle "$BACKLIST" --clear \
+		--extra-label "List" --extra-button \
+		--colors --inputbox "$ASK_FOR_TARGET_DEV_MSG" 18 70 2>&1 1>&3`
+	retval=$?
+	exec 3>&-
+	check_retval
+	# Display list and come back.
+	if [ "$retval" = "3" ]; then
+		fdisk_list
+		ask_for_target_dev
+	fi
+	# Empty value.
+	if [ -z $TARGET_DEV ]; then
+		ask_for_target_dev
+	fi
+	set_messages
+	# Check if specified device exists in /proc/partitions.
+	DEV_NAME=${TARGET_DEV#/dev/}
+	if cat /proc/partitions | grep -q $DEV_NAME; then
+		if [ "$DEV_NAME" = "$TARGET_DEV" ]; then
+			TARGET_DEV="/dev/$DEV_NAME"
+		fi
+		echo "ask_for_target_dev: $TARGET_DEV" >>$LOG
+	else
+		ERROR_MSG="Partition \Z2$TARGET_DEV\Zn doesn't exist."
+		error_message
+		ask_for_target_dev
+	fi
+}
+
+# Mkfs if needed/wanted on /.
+ask_for_mkfs_target_dev()
+{
+	$DIALOG --title " Format " \
+		--backtitle "$BACKLIST" \
+		--clear --colors --yesno "$ASK_FOR_MKFS_TARGET_DEV_MSG" 18 70
+	retval=$?
+	case $retval in
+		0)
+			MKFS_TARGET_DEV="ext3"
+			echo "mkfs_target_dev: ext3" >>$LOG ;;
+		1)
+			CLEAN="clean"
+			echo "mkfs_target_dev: clean" >>$LOG ;;
+		255)
+			echo -e "ESC pressed.\n" && exit 0 ;;
+	esac
+
+}
+
+# We can have a separate partition for /home.
+ask_for_home()
+{
+	exec 3>&1
+	HOME_DEV=`$DIALOG --title " Home Partition " \
+		--backtitle "$BACKLIST" --clear \
+		--extra-label "List" --extra-button \
+		--colors --inputbox "
+On most GNU/Linux systems users personal files are stored in the directory \
+/home. Home can be on a separate partition or another hard disk.
+
+\Z2Home partition to use (Optional):\Zn" 18 70 2>&1 1>&3`
+	retval=$?
+	exec 3>&-
+	check_retval
+	# Display list and come back.
+	if [ "$retval" = "3" ]; then
+		fdisk_list
+		ask_for_home
+	fi
+	if [ -n "$HOME_DEV" ]; then
+		# Check if specified device exists in /proc/partitions.
+		DEV_NAME=${HOME_DEV#/dev/}
+		if cat /proc/partitions | grep -q $DEV_NAME; then
+			if [ "$DEV_NAME" = "$HOME_DEV" ]; then
+				HOME_DEV="/dev/$DEV_NAME"
+			fi
+			echo "ask_for_home: $HOME_DEV" >>$LOG
+		else
+			ERROR_MSG="Partition \Z2$HOME_DEV\Zn doesn't exist."
+			error_message
+			ask_for_home
+		fi
+	fi
+}
+
+# Mkfs if needed/wanted on /.
+ask_for_mkfs_home()
+{
+	$DIALOG --title " Format " \
+		--backtitle "$BACKLIST" \
+		--clear --colors --yesno "
+Here you can format the /home partition: $HOME_DEV
+
+SliTaz uses ext3 by default but another filesystem can be used if wanted, \
+for this please adjust your /etc/fstab after installation.
+
+\Z2Do you want to format (Option): $HOME_DEV\Zn" 18 70
+	retval=$?
+	case $retval in
+		0)
+			MKFS_HOME="ext3"
+			echo "mkfs_home: ext3" >>$LOG ;;
+		1)
+			MKFS_HOME=""
+			echo "mkfs_home: no" >>$LOG ;;
+		255)
+			echo -e "ESC pressed.\n" && exit 0 ;;
+	esac
+
+}
+
+# Ask for hostname before installing files.
+ask_for_hostname()
+{
+	exec 3>&1
+	HOSTNAME=`$DIALOG --title " Hostname " \
+		--backtitle "$BACKLIST" --clear \
+		--colors --inputbox "$ASK_FOR_HOSTNAME_MSG" 18 70 "slitaz" 2>&1 1>&3`
+	retval=$?
+	exec 3>&-
+	check_retval
+	# Empty value.
+	if [ -z $HOSTNAME ]; then
+		HOSTNAME="slitaz"
+	fi
+}
+
+# Ask for root password and default user settings.
+ask_for_users_settings()
+{
+	# Root passwd
+	exec 3>&1
+	ROOT_PASSWD=`$DIALOG --title " Root password " \
+		--backtitle "$BACKLIST" --clear \
+		--colors --nocancel --inputbox "
+The root administrator privilege lets you manage and configure the full \
+system. A root user can damage your system so you should always setup a \
+strong password with special characters and/or numbers.
+
+\Z2Please specify the Root password for your new system:\Zn" 18 70 "root" 2>&1 1>&3`
+	retval=$?
+	exec 3>&-
+	check_retval
+	# Prevent empty value.
+	if [ -z $ROOT_PASSWD ]; then
+		ROOT_PASSWD="root"
+	fi
+	# Default user
+	exec 3>&1
+	USER=`$DIALOG --title " User name " \
+		--backtitle "$BACKLIST" --clear \
+		--colors --nocancel --inputbox "
+The default user for the system will have their personal files stored \
+in /home/*user* (and will be automatically added to the audio group).
+
+\Z2Default user name login:\Zn" 18 70 "tux" 2>&1 1>&3`
+	retval=$?
+	exec 3>&-
+	check_retval
+	# Prevent empty value.
+	if [ -z $USER ]; then
+		USER="tux"
+	fi
+	# User passwd
+	exec 3>&1
+	USER_PASSWD=`$DIALOG --title " User password " \
+		--backtitle "$BACKLIST" --clear \
+		--colors --nocancel --inputbox "
+The password for default user $USER. It may be a security risk if too \
+weak and should always be strong if you use a SSH connection through the web.
+
+\Z2Please specify $USER password:\Zn" 18 70 "tux" 2>&1 1>&3`
+	retval=$?
+	exec 3>&-
+	check_retval
+	# Prevent empty value.
+	if [ -z $USER_PASSWD ]; then
+		USER_PASSWD="tux"
+	fi
+}
+
+# Tiny summary and last chance to cancel or restart for user.
+summary()
+{
+	$DIALOG --title " Summary " \
+		--backtitle "$BACKLIST" \
+		--clear --colors --yesno "
+Installation settings summary and last chance to cancel or restart all \
+installation steps.
+
+Root partition: $TARGET_DEV
+Home partition: $HOME_DEV
+Hostname: $HOSTNAME
+Default user: $USER
+
+\Z2Go and install SliTaz or cancel?\Zn" 18 70
+	retval=$?
+	check_retval
+}
+
+# Mount and mkfs with progress.
+prepare_partitions()
+{
+	(
+	echo "XXX" && echo 30
+	echo -e "\nPreparing target partition..."
+	echo "XXX"
+	# Mount point can be already used.
+	if mount | grep -q $TARGET_ROOT; then
+		umount $TARGET_ROOT 2>$LOG
+	fi
+	sleep 2
+
+	if [ "$MKFS_TARGET_DEV" == "ext3" ]; then
+		echo "XXX" && echo 50
+		echo -e "\nExecuting mkfs.ext3 on $TARGET_DEV"
+		echo "XXX"
+		mkfs.ext3 $TARGET_DEV >>$LOG 2>>$LOG
+	else
+		echo "XXX" && echo 50
+		echo -e "\nThe partition ($TARGET_DEV) will be cleaned..."
+		echo "XXX"
+		sleep 2
+	fi
+
+	if [ "$MKFS_HOME" == "ext3" ]; then
+		echo "XXX" && echo 70
+		echo -e "\nExecuting mkfs.ext3 on $HOME_DEV"
+		echo "XXX"
+		mkfs.ext3 -L "Home" $HOME_DEV >>$LOG 2>>$LOG
+	else
+		echo "XXX" && echo 70
+		echo -e "\nThe partition ($HOME_DEV) will be kept..."
+		echo "XXX"
+		sleep 2
+	fi
+
+	echo "XXX" && echo 90
+	echo -e "\nCreating mount point: $TARGET_ROOT"
+	echo "XXX"
+	mkdir -p $TARGET_ROOT
+	sleep 2
+
+	) |
+	$DIALOG --title " Prepare the target " \
+		--backtitle "$BACKLIST" \
+		--gauge "Target in preparation..." 18 70 0
+	# Mount target.
+	mount $TARGET_DEV $TARGET_ROOT >>$LOG 2>>$LOG
+}
+
+# Get a clean target device (15%).
+clean_target()
+{
+	if [ "$CLEAN" == "clean" ]; then
+		echo "XXX" && echo 15
+		echo -e "\nCleaning the root partition ($TARGET_DEV)..."
+		echo "XXX"
+		# Keep /home in case of reinstall.
+		cd $TARGET_ROOT
+		for dir in *
+		do
+			case "$dir" in
+				home)
+					mv $TARGET_ROOT/home $TARGET_ROOT/home.bak
+					echo "keeping /home found on: $TARGET_DEV" >>$LOG ;;
+				lost+found)
+					continue ;;
+				*)
+					echo "removing target: $dir" >>$LOG
+					rm -rf $dir 2>>$LOG ;;
+			esac
+		done
+		if [ -d $TARGET_ROOT/mklost+found ]; then
+			mklost+found 2>>$LOG
+		fi
+	fi
+	sleep 2
+}
+
+# Kernel is renamed to standard vmlinuz-$VERSION.
+install_kernel()
+{
+	mkdir -p $TARGET_ROOT/boot
+	cp /media/cdrom/boot/bzImage $TARGET_ROOT/boot/$KERNEL
+	echo "install_kernel: $KERNEL" >> $LOG
+	sleep 2
+}
+
+# Copy isolinux r/w files (not syslinux, some files are read only).
+copy_bootloaders()
+{
+	if [ -d "/media/cdrom/boot/isolinux" ]; then
+		mkdir -p $TARGET_ROOT/boot/isolinux
+		cp -a /media/cdrom/boot/isolinux/*.cfg $TARGET_ROOT/boot/isolinux
+		cp -a /media/cdrom/boot/isolinux/*.kbd $TARGET_ROOT/boot/isolinux
+		cp -a /media/cdrom/boot/isolinux/*.txt $TARGET_ROOT/boot/isolinux
+		cp -a /media/cdrom/boot/isolinux/*.bin $TARGET_ROOT/boot/isolinux
+		cp -a /media/cdrom/boot/isolinux/*.msg $TARGET_ROOT/boot/isolinux
+		cp -a /media/cdrom/boot/isolinux/*.lss $TARGET_ROOT/boot/isolinux
+		cp -a /media/cdrom/boot/isolinux/*.c32 $TARGET_ROOT/boot/isolinux
+	fi
+}
+
+need_package()
+{
+	[ -d $INSTALLED/$1 ] || tazpkg get-install $1
+}
+
+# extract packed rootfs: squashfs or cromfs
+extract_loramfs()
+{
+	local i
+	for i in $(cpio -idvum 2> /dev/null); do
+		case "$i" in
+		rootfs*)
+			need_package squashfs
+			if ! unsquashfs $i ; then
+				need_package cromfs
+				unmkcromfs $i squashfs-root
+			fi
+			mv -f squashfs-root/* .
+			rmdir squashfs-root
+			rm -f $i
+		esac
+	done
+}
+
+# This is a loram rootfs.gz, skip loram bootstrap and extract
+extract_first_loramfs()
+{
+	(zcat $1 || unlzma -c $1) | cpio -i extractfs.cpio 2> /dev/null &&
+		( cd / ; cpio -id ) < extractfs.cpio && rm -f extractfs.cpio
+	ofs=$(awk '/07070100/ { o+=index($0,"07070100"); printf "%d\n",o/4 ; exit } { o+=1+length() }' < $1)
+	dd if=$1 skip=$(($ofs / 1024)) bs=4k count=1 2> /dev/null | \
+	( dd skip=$(($ofs % 1024)) bs=4 2> /dev/null ; \
+	  dd if=$1 skip=$((1 + ($ofs / 1024) )) bs=4k ) | extract_loramfs			  
+}
+
+# Extract lzma'ed or gziped rootfs.
+extract_rootfs()
+{
+	local isloramfs
+	isloramfs=
+	cd $TARGET_ROOT
+	if [ -d $1/../fs/etc ]; then
+		# This is a tazlitobox loram (cdrom)
+		cp -a $1/../fs/. .
+	else
+	for i in $(ls $1/rootfs* | sort -r); do
+		if [ ! -d etc ]; then
+			if [ $( (zcat $i 2>/dev/null || lzma d $i -so) | wc -c) \
+					-lt $(stat -c %s $i) ]; then
+				# This is a tazlitobox loram (ram)
+				isloramfs=$i
+				extract_first_loramfs $i
+				continue
+			fi
+		fi
+		if [ -n "$isloramfs" ]; then
+			extract_loramfs < $i
+			continue
+		fi
+		( zcat $i 2>/dev/null || lzma d $i -so || \
+		  cat $i ) 2>>$LOG | cpio -idu
+	done 2>>$LOG > /dev/null
+	fi
+	cp /etc/keymap.conf etc
+	# unpack /usr (double check...)
+	if ls etc/tazlito | grep -q ".extract"; then
+		for i in etc/tazlito/*.extract; do
+			[ -f "$i" ] && . $i /media/cdrom
+		done
+	fi
+}
+
+# Pre configure freshly installed system (60 - 80%).
+pre_config_system()
+{
+	cd $TARGET_ROOT
+	# Restore backup of existing /home if exists.
+	# (created by prepare_target_dev)
+	if [ -d home.bak ]; then
+		echo "XXX" && echo 65
+		echo -e "\nRestoring directory: /home..."
+		echo "XXX"
+		rm -rf home
+		mv home.bak home
+		sleep 1
+	fi
+	# Add root device to CHECK_FS in rcS.conf to check filesystem
+	# on each boot.
+	echo "XXX" && echo 70
+	echo -e "\nAdding $TARGET_DEV and CHECK_FS to file /etc/rcS.conf..."
+	echo "XXX"
+	sed -i s#'CHECK_FS=\"\"'#"CHECK_FS=\"$TARGET_DEV\""# etc/rcS.conf
+	sleep 2
+	# Set hostname.
+	echo "XXX" && echo 80
+	echo -e "\nConfiguring host name: $HOSTNAME"
+	echo "XXX"
+	echo $HOSTNAME > etc/hostname
+}
+
+# Set root passwd and create user after rootfs extraction.
+users_settings()
+{
+	cat > $TARGET_ROOT/users.sh << _EOF_
+#!/bin/sh
+echo "root:$ROOT_PASSWD" | chpasswd
+adduser -D -H $USER
+
+for grp in audio cdrom floppy dialout disk kmem tape tty video; do
+ if ! grep \$grp /etc/group | grep -q $USER ; then
+    addgroup $USER \$grp
+ fi
+done
+
+echo "$USER:$USER_PASSWD" | chpasswd
+if [ ! -d /home/$USER ]; then
+	cp -a /etc/skel /home/$USER
+	cp /root/.xinitrc /home/$USER
+	mkdir -p /home/$USER/.config/slitaz
+	cp -a /etc/slitaz/applications.conf /home/$USER/.config/slitaz
+	chown -R $USER.users /home/$USER
+	# Path for user desktop files.
+	for i in /home/$USER/.local/share/applications/*.desktop
+	do
+		sed -i s/"user_name"/"$USER"/g \$i
+	done
+fi
+# Slim default user.
+if [ -f /etc/slim.conf ]; then
+	sed -i s/"default_user .*"/"default_user        $USER"/ \
+		/etc/slim.conf
+fi
+_EOF_
+	chmod +x $TARGET_ROOT/users.sh
+	chroot $TARGET_ROOT ./users.sh
+	rm $TARGET_ROOT/users.sh
+}
+
+# /home can be on a separate partition. If default user exist in /home
+# we remove default file crated by users_settings().
+home_config()
+{
+	echo "home_config: $HOME_DEV" >> $LOG
+	cd $TARGET_ROOT
+	mv home/$USER tmp
+	mount $HOME_DEV home
+	if [ -d $TARGET_ROOT/home/$USER ]; then
+		rm -rf tmp/$USER
+	else
+		mv tmp/$USER home
+	fi
+	echo "$HOME_DEV       /home        ext3    defaults          0       2" \
+		>> etc/fstab
+	umount home
+}
+
+# Determine GRUB partition number and GRUB disk number.
+grub_config()
+{
+	DISK_LETTER=${TARGET_DEV#/dev/[h-s]d}
+	DISK_LETTER=${DISK_LETTER%[0-9]}
+	GRUB_PARTITION=$((${TARGET_DEV#/dev/[h-s]d[a-z]}-1))
+	for disk in a b c d e f g h
+	do
+		nb=$(($nb+1))
+		if [ "$disk" = "$DISK_LETTER" ]; then
+			GRUB_DISK=$(($nb-1))
+			break
+		fi
+	done
+	[ -f $INSTALLED/grub2/receipt ] && GRUB_PARTITION=$((${TARGET_DEV#/dev/[h-s]d[a-z]}))
+	GRUB_ROOT="(hd${GRUB_DISK},${GRUB_PARTITION})"
+	# Create the target GRUB configuration.
+	mkdir -p $TARGET_ROOT/boot/grub
+	. /etc/locale.conf
+	if [ -f $INSTALLED/grub/receipt ]; then
+		cat > $TARGET_ROOT/boot/grub/menu.lst << _EOF_
+# /boot/grub/menu.lst: GRUB boot loader configuration.
+#
+
+# By default, boot the first entry.
+default 0
+
+# Boot automatically after 8 secs.
+timeout 8
+
+# Graphical splash image.
+splashimage=/boot/grub/splash.xpm.gz
+
+# Change the colors.
+#color yellow/brown light-green/black
+
+# For booting SliTaz from : $TARGET_DEV
+#
+title SliTaz GNU/Linux (cooking) (Kernel $KERNEL)
+root $GRUB_ROOT
+kernel /boot/$KERNEL root=$TARGET_DEV lang=$LANG
+
+_EOF_
+		# log
+		echo "grub_config: $TARGET_ROOT/boot/grub/menu.lst" >>$LOG
+		sleep 2
+	elif [ -f $INSTALLED/grub2/receipt ]; then
+		cat > $TARGET_ROOT/boot/grub/grub.cfg << _EOF_
+# /boot/grub/menu.lst: GRUB boot loader configuration.
+#
+
+# By default, boot the first entry.
+set default=0
+
+# Boot automatically after 8 secs.
+set timeout=8
+
+# Graphical splash image.
+#splashimage=/boot/grub/splash.xpm.gz
+
+# Change the colors.
+#color yellow/brown light-green/black
+
+# For booting SliTaz from : $TARGET_DEV
+#
+menuentry "SliTaz GNU/Linux (cooking) (Kernel $KERNEL)" {
+	set root=$GRUB_ROOT
+	linux /boot/$KERNEL root=$TARGET_DEV lang=$LANG
+}
+
+_EOF_
+		# log
+		echo "grub_config: $TARGET_ROOT/boot/grub/grub.cfg" >>$LOG
+		sleep 2
+	fi
+}
+
+# Files install with gauge, calling for functions or with cmds.
+install_files()
+{
+	(
+
+	echo "XXX" && echo 10
+	echo -e "\nCleaning the root partition if necessary..."
+	echo "XXX"
+	clean_target
+
+	echo "XXX" && echo 20
+	echo -e "\nInstalling the kernel ($KERNEL)..."
+	echo "XXX"
+	install_kernel
+
+	echo "XXX" && echo 30
+	echo -e "\nCopying the bootloader syslinux/isolinux..."
+	echo "XXX"
+	copy_bootloaders
+
+	if [ -d /mnt/live/initramfs ]; then
+		echo "XXX" && echo 50
+		echo -e "\nExtracting slitaz-tank root system..."
+		cp -a /mnt/live/initramfs/* $TARGET_ROOT
+		images=/mnt/live/memory/images
+		for i in $(ls $images); do
+			for a in $(ls $images/$i); do
+				cp -a $images/$i/$a $TARGET_ROOT
+			done
+		done
+	else
+		echo "XXX" && echo 50
+		echo -e "\nExtracting the root system..."
+		echo "XXX"
+		extract_rootfs /media/cdrom/boot
+	fi
+	
+
+	echo "XXX" && echo 60
+	echo -e "\nPreconfiguring the system..."
+	echo "XXX"
+	pre_config_system
+
+	echo "XXX" && echo 70
+	echo -e "\nConfiguring root and default $USER account..."
+	echo "XXX"
+	users_settings
+	sleep 2
+
+	if [ "$HOME_DEV" != "" ]; then
+		echo "XXX" && echo 80
+		echo -e "\nConfiguring $HOME_DEV to be used as /home..."
+		echo "XXX"
+		home_config
+		sleep 2
+	fi
+
+	echo "XXX" && echo 90
+	echo -e "\nCreating the configuration file for GRUB (menu.lst)..."
+	echo "XXX"
+	grub_config
+
+	echo "XXX" && echo 100
+	echo -e "\nFinishing the files installation..."
+	echo "XXX"
+	echo "install_files: OK" >>$LOG
+	sleep 2
+
+	) |
+	$DIALOG --title " Install files " \
+		--backtitle "$BACKLIST" \
+		--gauge "Starting to install files..." 18 70 0
+}
+
+# GRUB info with disk name used for grub-install.
+grub_install()
+{
+	TARGET_DISK=`echo $TARGET_DEV | sed s/"[0-9]"/''/`
+	set_messages
+	$DIALOG --title " GRUB install " \
+		--backtitle "$BACKLIST" \
+		--clear --colors --yesno "$GRUB_INSTALL_MSG" 18 70
+	retval=$?
+	case $retval in
+		0)
+			(
+			echo "XXX" && echo 50
+			echo -e "\nRunning grub-install on : $TARGET_DISK"
+			echo "XXX"
+			grub-install --no-floppy \
+				--root-directory=$TARGET_ROOT $TARGET_DISK 2>>$LOG
+			echo "XXX" && echo 100
+			echo -e "\nFinished installation..."
+			echo "XXX"
+			sleep 2
+			) |
+			$DIALOG --title " GRUB install " \
+				--backtitle "$BACKLIST" \
+				--gauge "Installing GRUB..." 18 70 0 ;;
+		1)
+			echo "grub_install: NO" >>$LOG ;;
+		255)
+			echo -e "ESC pressed.\n" && exit 0 ;;
+	esac
+}
+
+# Copy log file, umount target and eject cdrom.
+umount_devices()
+{
+	(
+	echo "XXX" && echo 25
+	echo -e "\nCopying the log files ($LOG)..."
+	echo "XXX"
+	cp -a $LOG $TARGET_ROOT/var/log
+	sleep 2
+	echo "XXX" && echo 50
+	echo -e "\nUnmounting the target ($TARGET_DEV)..."
+	echo "XXX"
+	if mount | grep -q $TARGET_ROOT; then
+		umount $TARGET_ROOT 2>/dev/null
+	fi
+	echo "XXX" && echo 75
+	echo -e "\nUnmounting and ejecting the cdrom..."
+	echo "XXX"
+	if mount | grep -q /media/cdrom; then
+		umount /media/cdrom
+		if [ ! -d /mnt/live/initramfs ]; then
+			grep -q slitaz-loram-cdrom /etc/init.d/rcS || eject
+		fi
+	fi
+	sleep 2
+	echo "XXX" && echo 100
+	echo -e "\n$TITLE..."
+	echo "XXX"
+	sleep 2
+	) |
+	$DIALOG --title " $TITLE " \
+		--backtitle "$BACKLIST" \
+		--gauge "$TITLE starting..." 18 70 0
+}
+
+# End of installation.
+end_of_install()
+{
+	echo "end_of_install: `date`" >>$LOG
+	$DIALOG --title " Installation complete " \
+		--backtitle "$BACKLIST" \
+		--yes-label "Exit" \
+		--no-label "Reboot" \
+		--clear --colors --yesno "$END_OF_INSTALL_MSG" 18 70
+	retval=$?
+	case $retval in
+	0)
+		TITLE="Exiting"
+		umount_devices ;;
+	1)
+		TITLE="Rebooting"
+		umount_devices
+		reboot || reboot -f ;;
+	255)
+		echo -e "ESC pressed.\n" && exit 0 ;;
+esac
+}
+
+#####################
+# Upgrade functions #
+#####################
+
+# We need a partition to upgrade SliTaz.
+ask_for_upgrade_dev()
+{
+	exec 3>&1
+	UPGRADE_DEV=`$DIALOG --title " Target to upgrade " \
+		--backtitle "$BACKLIST" --clear \
+		--extra-label "List" --extra-button \
+		--colors --inputbox "\n
+The installer will upgrade the target by saving all configuration files and \
+the list of installed packages. Then, it will clean the partition and install the \
+version of SliTaz contained on the cdrom, restore the configuration files and \
+reinstall any packages which are not present on the cdrom. You will need an active \
+internet connection before upgrading.\n\n
+\Z2Partition containing the system upgrade:\Zn" 18 70 2>&1 1>&3`
+	retval=$?
+	exec 3>&-
+	check_retval
+	# Display list and come back.
+	if [ "$retval" = "3" ]; then
+		fdisk_list
+		ask_for_upgrade_dev
+	fi
+	# Empty value.
+	if [ -z $UPGRADE_DEV ]; then
+		ask_for_upgrade_dev
+	fi
+	# Check if specified device exists in /proc/partitions.
+	DEV_NAME=${UPGRADE_DEV#/dev/}
+	if cat /proc/partitions | grep -q $DEV_NAME; then
+		echo "ask_for_target_dev: $TARGET_DEV" >>$LOG
+	else
+		ERROR_MSG="The partition \Z2$UPGRADE_DEV\Zn doesn't seem to exist."
+		error_message
+		ask_for_upgrade_dev
+	fi
+	echo "partition to upgrade: $UPGRADE_DEV" >>$LOG
+}
+
+# Prepare the partition to upgrade, backup, install, restore configs
+# and reinstall pkgs.
+upgrade_process()
+{
+	(
+	echo "XXX" && echo 5
+	echo -e "\nPreparing the target partition..."
+	echo "XXX"
+	# Mount point can be already used.
+	if mount | grep -q $TARGET_ROOT; then
+		umount $TARGET_ROOT 2>$LOG
+	fi
+	mkdir -p $TARGET_ROOT && sleep 2
+	# Mount target.
+	mount $UPGRADE_DEV $TARGET_ROOT >>$LOG 2>>$LOG
+	cd $TARGET_ROOT
+	TARGET_DEV=$UPGRADE_DEV
+	set_messages
+
+	echo "XXX" && echo 10
+	echo -e "\nSearching for /etc/slitaz-release"
+	echo "XXX"
+	if [ -f etc/slitaz-release ]; then
+		release=`cat etc/slitaz-release`
+		echo "XXX" && echo 15
+		echo -e "\nSliTaz release: $release"
+		echo "XXX"
+	else
+		ERROR_MSG="The partition \Z2$UPGRADE_DEV\Zn doesn't appear to contain \
+a SliTaz system, the file: /etc/slitaz-release doesn't exist."
+		error_message
+		exit 0
+	fi && sleep 2
+
+	echo "XXX" && echo 20
+	echo -e "\nBackup /etc, /home and the packages list..."
+	echo "XXX"
+	# Backup target packages list.
+	ls -1 var/lib/tazpkg/installed > home/packages-selection.list
+	for dir in *
+	do
+		case "$dir" in
+			boot)
+				# Upgrade doesn't prompt for grub install, so backup and
+				# create a new grub menu.lst.
+				rm -rf $TARGET_ROOT/boot/vmlinuz-*
+				mv $TARGET_ROOT/boot/grub/menu.lst \
+					$TARGET_ROOT/boot/grub/menu.lst.bak 2>/dev/null
+				grub_config ;;
+			home)
+				mv $TARGET_ROOT/home $TARGET_ROOT/home.bak
+				echo "keeping /home found on: $UPGRADE_DEV" >>$LOG ;;
+			etc)
+				tar czf $TARGET_ROOT/etc.tar.gz etc
+				mv $TARGET_ROOT/etc $TARGET_ROOT/etc.bak
+				echo "keeping /etc found on: $UPGRADE_DEV" >>$LOG ;;
+			var)
+				if [ -d $TARGET_ROOT/var/www ]; then
+					mv $TARGET_ROOT/var/www $TARGET_ROOT/www.bak
+				fi
+				rm -rf $TARGET_ROOT/var ;;
+			lost+found)
+				continue ;;
+			*)
+				echo "removing target: $dir" >>$LOG
+				rm -rf $TARGET_ROOT/$dir 2>>$LOG ;;
+		esac
+	done
+	if [ -d $TARGET_ROOT/mklost+found ]; then
+		mklost+found 2>>$LOG
+	fi
+	sleep 2
+
+	echo "XXX" && echo 25
+	echo -e "\nInstalling the kernel ($KERNEL)..."
+	echo "XXX"
+	install_kernel
+
+	echo "XXX" && echo 30
+	echo -e "\nCopying the bootloader syslinux/isolinux..."
+	echo "XXX"
+	copy_bootloaders
+
+	echo "XXX" && echo 40
+	echo -e "\nExtracting the root system..."
+	echo "XXX"
+	extract_rootfs /media/cdrom/boot
+
+	# Restore backups.
+	echo "XXX" && echo 42
+	echo -e "\nRestoring configuration files..."
+	echo "XXX"
+	rm -rf $TARGET_ROOT/home
+	mv $TARGET_ROOT/home.bak $TARGET_ROOT/home
+	rm -rf $TARGET_ROOT/etc
+	mv $TARGET_ROOT/etc.bak $TARGET_ROOT/etc
+	if [ -d $TARGET_ROOT/www.bak ]; then
+		rm -rf $TARGET_ROOT/var/www
+		mv $TARGET_ROOT/www.bak $TARGET_ROOT/var/www
+	fi
+	echo "backups restored: `date`" >> $LOG
+
+	# /var/lib/slitaz-installer
+	mkdir $TARGET_ROOT/var/lib/slitaz-installer
+	mv $TARGET_ROOT/etc.tar.gz $TARGET_ROOT/var/lib/slitaz-installer
+	mv $TARGET_ROOT/home/packages-selection.list $TARGET_ROOT/var/lib/slitaz-installer
+	cd $TARGET_ROOT/var/lib/slitaz-installer
+
+	# LiveCD packages list.
+	echo "XXX" && echo 46
+	echo -e "\nCreating package lists..."
+	echo "XXX"
+	ls -1 $TARGET_ROOT/var/lib/tazpkg/installed > packages-cdrom.list || exit 1
+	echo "packages-cdrom.list: done" >> $LOG
+	# Diff
+	diff packages-cdrom.list packages-selection.list | \
+		grep ^+[a-z] | sed s/^+// > packages-selection.diff
+	echo "packages-selection.diff: done" >> $LOG
+	# Get mirror list.
+	tazpkg recharge >>$LOG 2>>$LOG
+	if [ ! -f /var/lib/tazpkg/packages.list ]; then
+		ERROR_MSG="The list of available packages on the mirror could not be \
+downloaded. No missing packages will be reinstalled now, but \
+you can do so later by looking at the following list: \n\n
+
+/var/lib/slitaz-installer/packages-selection.diff"
+		error_message
+	fi
+	sleep 2
+
+	# Check if the pkg is on the mirror.
+	echo "XXX" && echo 48
+	echo -e "\nChecking the availability of packages..."
+	echo "XXX"
+	touch packages-to-install.list
+	packages=0
+	diff=`cat packages-selection.diff | sort`
+	for pkg in $diff
+	do
+		if grep -q ^$pkg-[0-9] /var/lib/tazpkg/packages.list; then
+			packages=$(($packages+1))
+			echo "$pkg" >> packages-to-install.list
+		fi
+	done
+
+	# Calculate the percent for one package and install.
+	echo "XXX" && echo 50
+	echo -e "\nInstalling any packages..."
+	echo "XXX"
+	sleep 2
+	if [ "$packages" == "0" ]; then
+		echo "packages to install: 0" >> $LOG
+	else
+		onepkg=$((48/$packages))
+		pct=50
+		# Get-install all missing pkgs.
+		for pkg in `cat packages-to-install.list`
+		do
+			pct=$(($pct+$onepkg))
+			echo "XXX" && echo $pct
+			echo -e "\nInstalling: $pkg..."
+			echo "XXX"
+			# Log please.
+			echo "get-install: $pkg" >>$LOG
+			# Get install package and answer yes in case of dependencies.
+			pkgname=`grep ^$pkg /var/lib/tazpkg/packages.list`
+			tazpkg get $pkg >/dev/null 2>/dev/null
+			yes "" | tazpkg install $pkgname.tazpkg --root=$TARGET_ROOT >/dev/null 2>/dev/null
+			rm -f $pkgname.tazpkg
+		done
+	fi
+	echo "XXX" && echo 100
+	echo -e "\nInstallation of packages complete..."
+	echo "XXX"
+	sleep 2
+	) |
+	$DIALOG --title " Processing system upgrade " \
+		--backtitle "$BACKLIST" \
+		--gauge "Target in preparation..." 18 70 0
+}
+
+# End of system upgrade.
+end_of_upgrade()
+{
+	TARGET_DEV=$UPGRADE_DEV
+	set_messages
+	pkgscd=`cat $TARGET_ROOT/var/lib/slitaz-installer/packages-cdrom.list | wc -l`
+	pkginst=`cat $TARGET_ROOT/var/lib/slitaz-installer/packages-to-install.list | wc -l`
+	echo "end_of_upgrade: `date`" >>$LOG
+	$DIALOG --title " Upgrade completed " \
+		--backtitle "$BACKLIST" \
+		--yes-label "Exit" \
+		--no-label "Reboot" \
+		--clear --colors --yesno "\n
+Upgrade finished. You can now restart (reboot) \
+from your SliTaz GNU/Linux system.\n\n
+Packages on the cdrom      : $pkgscd\n
+Packages installed from the mirror : $pkginst\n" 18 70
+	retval=$?
+	case $retval in
+	0)
+		TITLE="Exiting"
+		umount_devices ;;
+	1)
+		TITLE="Rebooting"
+		umount_devices
+		reboot || reboot -f ;;
+	255)
+		echo -e "ESC pressed.\n" && exit 0 ;;
+esac
+}
+
+######################
+# Installer sequence #
+######################
+
+set_messages
+check_root
+start_installer
+
+case $ACTION in
+	upgrade)
+		BACKLIST="$BACKLIST (Upgrade)"
+		mount_cdrom
+		ask_for_upgrade_dev
+		upgrade_process
+		end_of_upgrade ;;
+	install|*)
+		mount_cdrom
+		ask_for_target_dev
+		ask_for_mkfs_target_dev
+		ask_for_home
+		if [ -n "$HOME_DEV" ]; then
+			ask_for_mkfs_home
+		fi
+		ask_for_hostname
+		ask_for_users_settings
+		summary
+		prepare_partitions
+		install_files
+		grub_install
+		end_of_install ;;
+esac
+
+exit 0
