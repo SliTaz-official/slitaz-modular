@@ -52,8 +52,8 @@ LOCAL_REPOSITORY="$SLITAZ"
 PACKAGES_REPOSITORY="$PKGS"
 INCOMING_REPOSITORY="$INCOMING"
 SOURCES_REPOSITORY="$SRC"
-HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-configs slitaz-dev-tools slitaz-doc slitaz-forge slitaz-modular slitaz-pizza slitaz-tools slitaz-vz ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok website wok wok-stable wok-tiny wok-undigest"
-MY_HG_LIST="slitaz-doc-wiki-data slitaz-boot-scripts my-cookutils wok-tank"
+HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-configs slitaz-doc slitaz-forge slitaz-modular slitaz-pizza slitaz-tools slitaz-vz ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok wok wok-stable wok-tiny wok-undigest"
+MY_HG_LIST="piratebox slitaz-cloud slitaz-dev-tools tazpkg-tank slitaz-doc-wiki-data slitaz-boot-scripts my-cookutils wok-tank website"
 MY_HG_URL="https://bitbucket.org/godane"
 
 error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
