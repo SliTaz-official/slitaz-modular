@@ -91,6 +91,9 @@ www() {
 	
 	case "$b" in
 		website)
+			cd $REPOS_DIR/$b
+			hg update testing
+			cd $CUR_DIR
 			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $MAIN_WWW_DIR
 			if [ -f $MAIN_WWW_DIR/$b/libs/get-feeds.sh ]; then
 				if [ ! $(grep -l "$MAIN_WWW_DIR/$b/libs/get-feeds.sh" $CRON_FILE) ]; then
@@ -310,6 +313,21 @@ www() {
 			#	[ -d $MAIN_WWW_DIR/gimp_es ] || ln -sf /usr/share/gimp/2.0/help/es $MAIN_WWW_DIR/gimp_es
 			#fi ;;
 			fake-website /usr/share/gimp/2.0/help/es gimp.es.slitaz.org ;;
+		piratebox)
+			cd $REPOS_DIR/piratebox
+			hg update lighttpd
+			cd $CUR_PWD
+			if [ -d $REPOS_DIR/piratebox/piratebox/www ]; then
+				cp -a $REPOS_DIR/piratebox/piratebox/www $MAIN_WWW_DIR/piratebox
+			fi
+			if [ -f $MAIN_WWW_DIR/piratebox/cgi-bin/data.pso ]; then
+				chmod -R 777 $MAIN_WWW_DIR/piratebox/cgi-bin/data.pso
+			fi
+			if [ ! -d $MAIN_WWW_DIR/piratebox/share ]; then
+				mkdir -p $MAIN_WWW_DIR/piratebox/share
+				chmod -R 777 $MAIN_WWW_DIR/piratebox/share
+			fi
+			;;
 		linuxgazette)
 			#if [ -d /repos/linuxgazette ]; then
 			#	[ -d $MAIN_WWW_DIR/linuxgazette ] || ln -sf /repos/linuxgazette $MAIN_WWW_DIR/linuxgazette
