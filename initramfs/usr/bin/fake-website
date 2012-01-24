@@ -19,7 +19,7 @@ usage() {
 [ ! -d "$DIR" ] && usage
 [ "$DIR" = "" -o "$WEB_ADDRESS" = "" ] && usage
 
-echo "building $WEB_ADDRESS site"
+[ -d $MAIN_WWW_DIR/$(basename $DIR) ] || echo "building $WEB_ADDRESS site"
 [ -d $MAIN_WWW_DIR ] || mkdir -p $MAIN_WWW_DIR
 if [ -d $DIR ]; then
 	[ -d $MAIN_WWW_DIR/$(basename $DIR) ] || ln -sf $DIR $MAIN_WWW_DIR/$(basename $DIR)
