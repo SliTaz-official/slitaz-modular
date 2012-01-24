@@ -29,3 +29,5 @@ module-init-tools
 util-linux-ng-uuid
 util-linux-ng-blkid
 udev
+fuse
+ntfs-3g
