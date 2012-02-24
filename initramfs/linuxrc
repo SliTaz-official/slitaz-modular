@@ -4,8 +4,8 @@
 
 export PATH=.:/:/usr/sbin:/usr/bin:/sbin:/bin
 
-mount -n -t proc proc /proc
-mount -n -t sysfs sysfs /sys
+mount -t proc proc /proc -o nosuid,noexec,nodev
+mount -t sysfs sys /sys -o nosuid,noexec,nodev
 #mount -n -o remount,rw /         # for the case we forgot rw boot option
 ln -sf /proc/mounts /etc/mtab    # this allows us to use umount -a
 
@@ -320,8 +320,12 @@ fi
 #mount -n -o move /proc proc
 #mount -n -o move /sys sys
 fumount /sys
+fumount /run
+fumount /dev
 
 if [ ! -e /dev/console ]; then mknod /dev/console c 5 1; fi
+if [ ! -d dev/shm ]; then mkdir -p dev/shm; fi
+if [ ! -d dev/pts ]; then mkdir -p dev/pts; fi
 
 # find chroot and init
 if [ -x bin/chroot ]; then  CHROOT=bin/chroot; fi
