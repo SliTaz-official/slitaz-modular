@@ -8,14 +8,12 @@ pcf-uming
 mesa
 mesa-dri
 mesa-demos
-libglw-mesa
 libegl-mesa
 libglu-mesa
 xorg-xf86-video-ati
 #xorg-xf86-video-geode
 xorg-xf86-video-i740
 xorg-xf86-video-intel
-xorg-xf86-video-mach64
 xorg-xf86-video-mga
 xorg-xf86-video-neomagic
 xorg-xf86-video-nv
@@ -36,5 +34,5 @@ xorg-xf86-input-mouse
 xorg-xf86-input-mutouch
 #xorg-xf86-input-plpevtch
 xorg-xf86-input-synaptics
-#xorg-xf86-input-vmmouse
+xorg-xf86-input-vmmouse
 xorg-xf86-input-void
