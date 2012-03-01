@@ -577,7 +577,7 @@ users_settings()
 {
 	cat > $TARGET_ROOT/users.sh << _EOF_
 #!/bin/sh
-echo "root:$ROOT_PASSWD" | chpasswd
+echo "root:$ROOT_PASSWD" | chpasswd -m
 adduser -D -H $USER
 
 for grp in audio cdrom floppy dialout disk kmem tape tty video; do
@@ -586,7 +586,7 @@ for grp in audio cdrom floppy dialout disk kmem tape tty video; do
  fi
 done
 
-echo "$USER:$USER_PASSWD" | chpasswd
+echo "$USER:$USER_PASSWD" | chpasswd -m
 if [ ! -d /home/$USER ]; then
 	cp -a /etc/skel /home/$USER
 	cp /root/.xinitrc /home/$USER
