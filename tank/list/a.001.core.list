@@ -18,7 +18,7 @@ clearlooks
 cookutils
 dbus
 dbus-glib
-depmod
+kmod
 desktop-file-utils
 dialog
 dropbear
