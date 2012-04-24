@@ -22,27 +22,34 @@ sync_mirror=$(find /mnt/live -maxdepth 3 -name "mirror" -type d | head -1)
 
 COOKORDER="$(find /mnt/live/mnt/* -maxdepth 1 -name "cookorder.list")"
 CUR_PWD="$PWD"
-version="$(cat /etc/slitaz-release)"
+version="$SLITAZ_RELEASE"
 
-[ -d $SLITAZ_DIR/$version ] || mkdir -p $SLITAZ_DIR/$version
-[ -d $SLITAZ_DIR/repos ] || ln -sf $REPOS_DIR $SLITAZ_DIR/repos
-[ -d $SLITAZ_DIR/repos ] && REPOS_DIR="$SLITAZ_DIR/repos"
+[ -d $SLITAZ_HOME/$version ] || mkdir -p $SLITAZ_HOME/$version
+[ -d $SLITAZ_HOME/repos ] || ln -sf $REPOS_DIR $SLITAZ_HOME/repos
+[ -d $SLITAZ_HOME/repos ] && REPOS_DIR="$SLITAZ_HOME/repos"
+PYTHON_LIB="/usr/lib/python2.7"
 
 if [ -d $PKGDIR ]; then
-	[ -d $SLITAZ_DIR/$version/packages ] || ln -sf $PKGDIR $SLITAZ_DIR/$version/packages
-	[ -d $SLITAZ_DIR/packages ] || ln -sf $PKGDIR $SLITAZ_DIR/packages
+	[ -d $SLITAZ_HOME/$version/packages ] || ln -sf $PKGDIR $SLITAZ_HOME/$version/packages
+	[ -d $SLITAZ_HOME/packages ] || ln -sf $PKGDIR $SLITAZ_HOME/packages
 fi
 if [ -d $SRCDIR ]; then
-	[ -d $SLITAZ_DIR/$version/src ] || ln -sf $SRCDIR $SLITAZ_DIR/$version/src
-	[ -d $SLITAZ_DIR/src ] || ln -sf $SRCDIR $SLITAZ_DIR/src
+	[ -d $SLITAZ_HOME/$version/src ] || ln -sf $SRCDIR $SLITAZ_HOME/$version/src
+	[ -d $SLITAZ_HOME/src ] || ln -sf $SRCDIR $SLITAZ_HOME/src
 fi
 
 #repos folders for website
 PEOPLE_WWW_DIR="$REPOS_DIR/slitaz-forge/people"
+MIRROR_WWW_DIR="$REPOS_DIR/slitaz-forge/mirror/root"
+MIRROR_INFO_WWW_DIR="$REPOS_DIR/slitaz-forge/mirror/info"
+PKGS_WWW_DIR="$REPOS_DIR/slitaz-forge/pkgs"
 DOC_WWW_DIR="$REPOS_DIR/slitaz-forge/doc"
 PIZZA_WWW_DIR="$REPOS_DIR/slitaz-pizza/php"
 BOOT_WWW_DIR="$REPOS_DIR/slitaz-forge/boot"
 TANK_WWW_DIR="$REPOS_DIR/slitaz-forge/tank/web"
+USBKEY_WWW_DIR="$REPOS_DIR/slitaz-forge/usbkey"
+ROADMAP_WWW_DIR="$REPOS_DIR/slitaz-forge/roadmap"
+PRO_WWW_DIR="$REPOS_DIR/slitaz-forge/pro"
 
 if [ "$COMMAND" = "tank-only" ]; then
 	WWW="${WWW/mirror/}"
@@ -63,7 +70,7 @@ fi
 [ -d $REPOS_DIR ] || continue
 
 INCOMING_REPOSITORY="$COOKING/packages-incoming"
-INCOMING="$SLITAZ_DIR/$version/incoming"
+INCOMING="$SLITAZ_HOME/$version/incoming"
 CRON_FILE="/var/spool/cron/crontabs/root"
 
 www() {
@@ -91,9 +98,9 @@ www() {
 	
 	case "$b" in
 		website)
-			cd $REPOS_DIR/$b
-			hg update testing
-			cd $CUR_DIR
+			#cd $REPOS_DIR/$b
+			#hg update testing
+			#cd $CUR_DIR
 			[ -d $REPOS_DIR/$b ] && ln -s $REPOS_DIR/$b $MAIN_WWW_DIR
 			if [ -f $MAIN_WWW_DIR/$b/libs/get-feeds.sh ]; then
 				if [ ! $(grep -l "$MAIN_WWW_DIR/$b/libs/get-feeds.sh" $CRON_FILE) ]; then
@@ -103,7 +110,7 @@ www() {
 			fi
 		;;
 		people)
-			[ -d $REPOS_DIR/slitaz-forge/people ] && ln -s $REPOS_DIR/slitaz-forge/people $MAIN_WWW_DIR/people
+			[ -d $PEOPLE_WWW_DIR ] && ln -s $PEOPLE_WWW_DIR $MAIN_WWW_DIR/people
 		;;
 		doc)
 			[ -d $DOC_WWW_DIR ] && cp -a $DOC_WWW_DIR $MAIN_WWW_DIR/doc
@@ -117,11 +124,11 @@ www() {
 			chmod 777 -R $MAIN_WWW_DIR/doc
 		;;
 		bugs)
-			[ -d $SLITAZ_DIR/bugs ] || mkdir -p $SLITAZ_DIR/bugs
+			[ -d $SLITAZ_HOME/bugs ] || mkdir -p $SLITAZ_HOME/bugs
 			[ -d $MAIN_WWW_DIR/bugs ] || mkdir -p $MAIN_WWW_DIR/bugs
-			[ -d $REPOS_DIR/slitaz-forge/bugs ] && cp -a $REPOS_DIR/slitaz-forge/bugs/roundup.wsgi $SLITAZ_DIR/bugs/roundup.wsgi
-			[ -d $REPOS_DIR/slitaz-forge/bugs ] && cp -a $REPOS_DIR/slitaz-forge/bugs/server.ini $SLITAZ_DIR/bugs/server.ini
-			[ -d $REPOS_DIR/slitaz-forge/bugs/templates/slitaz ] && cp -a $REPOS_DIR/slitaz-forge/bugs/templates/slitaz/* $SLITAZ_DIR/bugs
+			[ -d $REPOS_DIR/slitaz-forge/bugs ] && cp -a $REPOS_DIR/slitaz-forge/bugs/roundup.wsgi $SLITAZ_HOME/bugs/roundup.wsgi
+			[ -d $REPOS_DIR/slitaz-forge/bugs ] && cp -a $REPOS_DIR/slitaz-forge/bugs/server.ini $SLITAZ_HOME/bugs/server.ini
+			[ -d $REPOS_DIR/slitaz-forge/bugs/templates/slitaz ] && cp -a $REPOS_DIR/slitaz-forge/bugs/templates/slitaz/* $SLITAZ_HOME/bugs
 			[ -f /usr/share/roundup/cgi-bin/roundup.cgi ] && ln -sf /usr/share/roundup/cgi-bin/roundup.cgi $MAIN_WWW_DIR/bugs/roundup.cgi
 		;;
 		pizza)
@@ -176,11 +183,11 @@ www() {
 			#	make install
 			#	cd $pwd
 			#fi
-			echo "$SLITAZ_DIR/$version/packages" > $LOCALSTATE/mirror
+			echo "$SLITAZ_HOME/$version/packages" > $LOCALSTATE/mirror
 			[ -d $LOCALSTATE/undigest/incoming ] || mkdir -p $LOCALSTATE/undigest/incoming
 			[ -f $LOCALSTATE/undigest/incoming/mirror ] || echo "$INCOMING" > $LOCALSTATE/undigest/incoming/mirror
 			echo "incoming" > $LOCALSTATE/priority
-			[ -d $SLITAZ_DIR/$version/incoming ] || mkdir -p $SLITAZ_DIR/$version/incoming
+			[ -d $SLITAZ_HOME/$version/incoming ] || mkdir -p $SLITAZ_HOME/$version/incoming
 			[ -d /var/www/cooker ] && cp -a /var/www/cooker $MAIN_WWW_DIR/$b
 			[ -f /usr/share/$b/header.html ] && cp -a /usr/share/$b/header.html $MAIN_WWW_DIR/$b/header.html
 			[ -f /etc/slitaz/$b.conf ] && cp -a /etc/slitaz/$b.conf $MAIN_WWW_DIR/$b/$b.conf
@@ -188,51 +195,50 @@ www() {
 				if [ -d $PKGDIR ]; then
 					tazpkg recharge
 					tazdev gen-chroot $version
-					[ -d $SLITAZ_DIR/$version/chroot ] && mkdir -p $SLITAZ_DIR/$version/chroot$(dirname $CRON_FILE)
-					[ -d $SLITAZ_DIR/$version/chroot ] && echo "0 */2 * * * /usr/bin/cooker" > $SLITAZ_DIR/$version/chroot${CRON_FILE}
-					[ -d $SLITAZ_DIR/$version/chroot ] && echo "$SLITAZ_DIR/$version/packages" > $SLITAZ_DIR/$version/chroot${LOCALSTATE}/mirror
-					mkdir -p $SLITAZ_DIR/$version/chroot${LOCALSTATE}/undigest/incoming
-					echo "$SLITAZ_DIR/$version/incoming" > $SLITAZ_DIR/$version/chroot${LOCALSTATE}/undigest/incoming/mirror
+					[ -d $SLITAZ_HOME/$version/chroot ] && mkdir -p $SLITAZ_HOME/$version/chroot$(dirname $CRON_FILE)
+					[ -d $SLITAZ_HOME/$version/chroot ] && echo "0 */2 * * * /usr/bin/cooker" > $SLITAZ_HOME/$version/chroot${CRON_FILE}
+					[ -d $SLITAZ_HOME/$version/chroot ] && echo "$SLITAZ_HOME/$version/packages" > $SLITAZ_HOME/$version/chroot${LOCALSTATE}/mirror
+					mkdir -p $SLITAZ_HOME/$version/chroot${LOCALSTATE}/undigest/incoming
+					echo "$SLITAZ_HOME/$version/incoming" > $SLITAZ_HOME/$version/chroot${LOCALSTATE}/undigest/incoming/mirror
 				fi
 			fi
-			[ -d $REPOS_DIR/wok-tank ] && ln -sf $REPOS_DIR/wok-tank $SLITAZ_DIR/$version/wok-hg
-			#[ -d $REPOS_DIR/wok-tank ] && ln -sf $REPOS_DIR/wok-tank $SLITAZ_DIR/$version/wok
-			[ -d $MAIN_WWW_DIR/$b/packages ] || ln -sf $SLITAZ_DIR/$version/packages $MAIN_WWW_DIR/$b/packages
-			[ -d $MAIN_WWW_DIR/$b/incoming ] || ln -sf $SLITAZ_DIR/$version/incoming $MAIN_WWW_DIR/$b/incoming
+			[ -d $REPOS_DIR/wok-tank ] && ln -sf $REPOS_DIR/wok-tank $SLITAZ_HOME/$version/wok-hg
+			#[ -d $REPOS_DIR/wok-tank ] && ln -sf $REPOS_DIR/wok-tank $SLITAZ_HOME/$version/wok
+			[ -d $MAIN_WWW_DIR/$b/packages ] || ln -sf $SLITAZ_HOME/$version/packages $MAIN_WWW_DIR/$b/packages
+			[ -d $MAIN_WWW_DIR/$b/incoming ] || ln -sf $SLITAZ_HOME/$version/incoming $MAIN_WWW_DIR/$b/incoming
 		;;
+		try)
+			[ -d $MAIN_WWW_DIR/tinycm ] || ln -sf $REPOS_DIR/tinycm $MAIN_WWW_DIR/tinycm ;;
 		pkgs)
-			[ -d $MAIN_WWW_DIR/pkgs ] || mkdir -p $MAIN_WWW_DIR/pkgs
 			pwd=$(pwd)
-			#if [ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web ]; then
-			#	cd $REPOS_DIR/slitaz-dev-tools/tazpkg-web
-			#	make install
-			#	cd $pwd
-			#fi
-			[ -d /var/lib/tazpkg-web/style ] && cp -a /var/lib/tazpkg-web/style $MAIN_WWW_DIR/pkgs
-			[ -f /var/lib/tazpkg-web/search.cgi ] && cp -a /var/lib/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
-			#[ -d $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/style/* $MAIN_WWW_DIR/pkgs
-			#[ -f $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi ] && cp -a $REPOS_DIR/slitaz-dev-tools/tazpkg-web/search.cgi $MAIN_WWW_DIR/pkgs
-			[ -d $REPOS_DIR/flavors ] && ln -sf $REPOS_DIR/flavors $COOKING/flavors
-			#[ -d $REPOS_DIR/flavors-stable ] && ln -sf $REPOS_DIR/flavors-stable $STABLE/flavors
-			#[ -d $COOKING/wok ] || ln -sf $REPOS_DIR/wok $COOKING/clean-wok
-			#[ -d $STABLE/clean-wok ] || ln -sf $REPOS_DIR/wok-stable $STABLE/clean-wok
-			if [ -f "/usr/bin/tazpkg-web" ]; then
-				tazpkg-web cooking
-				if [ ! $(grep -l "/usr/bin/tazpkg-web cooking" $CRON_FILE) ]; then
-					echo "# Update pkgs.slitaz.org pages" >> $CRON_FILE
-					echo "20 02 * * * /usr/bin/tazpkg-web cooking" >> $CRON_FILE
-				fi
+			if [ -d $PKGS_WWW_DIR ]; then
+				cd $PKGS_WWW_DIR
+				make install-msg
+				cd $pwd
 			fi
+			[ -d $MAIN_WWW_DIR/pkgs ] || ln -sf $PKGS_WWW_DIR $MAIN_WWW_DIR/pkgs
+			[ -d $REPOS_DIR/flavors ] && ln -sf $REPOS_DIR/flavors $COOKING/flavors
 		;;
+		usbkey)
+			[ -d $USBKEY_WWW_DIR ] && ln -sf $USBKEY_WWW_DIR $MAIN_WWW_DIR/usbkey ;;
+		pro)
+			[ -d $PRO_WWW_DIR ] && ln -sf $PRO_WWW_DIR $MAIN_WWW_DIR/pro ;;
+		roadmap)
+			[ -d $ROADMAP_WWW_DIR ] && ln -sf $ROADMAP_WWW_DIR $MAIN_WWW_DIR/roadmap ;;
 		mirror)
-			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/mirror-info $MAIN_WWW_DIR
-			[ -d $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz ] && cp -a $REPOS_DIR/slitaz-dev-tools/mirror-tools/slitaz $MAIN_WWW_DIR
-			[ -d $MAIN_WWW_DIR/slitaz/mirror/packages ] || mkdir -p $MAIN_WWW_DIR/slitaz/mirror/packages
-			[ -d $PKGDIR ] && ln -sf $PKGDIR $MAIN_WWW_DIR/slitaz/mirror/packages/$version
-			[ -d /var/www/slitaz ] || ln -sf $MAIN_WWW_DIR/slitaz /var/www/slitaz
+			[ -d $MIRROR_INFO_WWW_DIR ] && cp -a $MIRROR_INFO_WWW_DIR  $MAIN_WWW_DIR/mirror-info
+			[ -d $MIRROR_WWW_DIR ] && cp -a $MIRROR_WWW_DIR $MAIN_WWW_DIR/mirror
+			[ -d $MAIN_WWW_DIR/mirror/packages ] || mkdir -p $MAIN_WWW_DIR/mirror/packages
+			[ -d $PKGDIR ] && ln -sf $PKGDIR $MAIN_WWW_DIR/mirror/packages/$version
+			[ -d /var/www/slitaz ] || mkdir -p /var/www/slitaz
+			[ -d /var/www/slitaz/mirror ] || ln -sf $MAIN_WWW_DIR/mirror /var/www/slitaz/mirror
+			[ -d /var/www/mirror ] || ln -sf $MAIN_WWW_DIR/mirror /var/www/mirror
 			[ -d /var/www/mirror-info ] || ln -sf $MAIN_WWW_DIR/mirror-info /var/www/mirror-info
 			[ -d $MAIN_WWW_DIR/mirror-info/pics ] || mkdir -p $MAIN_WWW_DIR/mirror-info/pics
 			[ -d $MAIN_WWW_DIR/mirror-info/pics/rrd ] || ln -sf $MAIN_WWW_DIR/pics/rrd $MAIN_WWW_DIR/mirror-info/pics/rrd
+			[ -f $REPOS_DIR/slitaz-forge/mirror/files/etc/rsyncd.conf ] && cp -a $REPOS_DIR/slitaz-forge/mirror/files/etc/rsyncd.conf /etc/rsyncd.conf
+			[ -f $REPOS_DIR/slitaz-forge/mirror/files/etc/rsyncd.motd ] && cp -a $REPOS_DIR/slitaz-forge/mirror/files/etc/rsyncd.motd /etc/rsyncd.motd
+			[ -f $REPOS_DIR/slitaz-forge/mirror/files/usr/bin/chkfilelist ] && cp -a $REPOS_DIR/slitaz-forge/mirror/files/usr/bin/chkfilelist /usr/bin/chkfilelist
 			if [ -f /usr/bin/makegraphs ]; then
 				[ -f $MAIN_WWW_DIR/pics/makegraphs ] || cp -a /usr/bin/makegraphs $MAIN_WWW_DIR/pics/makegraphs
 				if [ ! $(grep -l "$MAIN_WWW_DIR/pics/makegraphs" $CRON_FILE) ]; then
@@ -255,8 +261,8 @@ www() {
 					mkdir -p $dirlog
 				fi
 			done
-			[ -d $MAIN_WWW_DIR/$b/pics ] || mkdir -p $MAIN_WWW_DIR/$b/pics
-			[ -d $MAIN_WWW_DIR/$b/pics/rrd ] || ln -sf $MAIN_WWW_DIR/pics/rrd $MAIN_WWW_DIR/$b/pics/rrd
+			[ -d $MAIN_WWW_DIR/$b/images ] || mkdir -p $MAIN_WWW_DIR/$b/images
+			[ -d $MAIN_WWW_DIR/$b/graphs/rrd ] || ln -sf $MAIN_WWW_DIR/graphs/rrd $MAIN_WWW_DIR/$b/images/rrd
 			if [ -f /usr/share/awstats/extras/update ]; then
 				if [ ! $(grep -l "/usr/share/awstats/extras/update" $CRON_FILE) ]; then
 					echo "# Update Web stats" >> $CRON_FILE
@@ -273,6 +279,7 @@ www() {
 		;;
 		hg)
 			[ -d $MAIN_WWW_DIR/hg ] || mkdir -p $MAIN_WWW_DIR/hg
+			[ -d $REPOS_DIR/slitaz-dev-tools/slitaz-mercurial-style ] && cp -a $REPOS_DIR/slitaz-dev-tools/slitaz-mercurial-style/* $PYTHON_LIB/site-packages/mercurial
 			[ -f /usr/share/examples/mercurial/hgwebdir.cgi ] && cp -a /usr/share/examples/mercurial/hgwebdir.cgi $MAIN_WWW_DIR/hg
 			[ -f /usr/share/examples/mercurial/hgwebdir.cgi ] && cp -a /usr/share/examples/mercurial/hgwebdir.cgi $MAIN_WWW_DIR/hg/hgwebdir.py
 			[ -f $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config ] && cp -a $REPOS_DIR/slitaz-forge/tank/files/etc/mercurial/hgweb.config /etc/mercurial
@@ -327,6 +334,7 @@ www() {
 				mkdir -p $MAIN_WWW_DIR/piratebox/share
 				chmod -R 777 $MAIN_WWW_DIR/piratebox/share
 			fi
+			echo "<date>00:00:00</date>&nbsp;&nbsp;<name>PirateBox:</name>&nbsp;&nbsp;&nbsp;<data class='def'>Chat and share files anonymously!</data><br>" > $MAIN_WWW_DIR/piratebox/cgi-bin/data.pso
 			;;
 		linuxgazette)
 			#if [ -d /repos/linuxgazette ]; then
@@ -427,12 +435,13 @@ repos() {
 up_src_links() {
 	local i
 	if [ -d $SRCDIR ]; then
-		[ -d $MAIN_WWW_DIR/slitaz/mirror/sources/packages ] && rm -rf $MAIN_WWW_DIR/slitaz/mirror/sources/packages
+		[ -d $MAIN_WWW_DIR/mirror/sources/packages ] && rm -rf $MAIN_WWW_DIR/mirror/sources/packages
 		for i in $(ls $SRCDIR); do
-			[ -d $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1} ] || mkdir -p $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}
-			[ -f $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i ] || ln -sf $SRCDIR/$i $MAIN_WWW_DIR/slitaz/mirror/sources/packages/${i:0:1}/$i
+			[ -d $MAIN_WWW_DIR/mirror/sources/packages/${i:0:1} ] || mkdir -p $MAIN_WWW_DIR/mirror/sources/packages/${i:0:1}
+			[ -f $MAIN_WWW_DIR/mirror/sources/packages/${i:0:1}/$i ] || ln -sf $SRCDIR/$i $MAIN_WWW_DIR/mirror/sources/packages/${i:0:1}/$i
 		done
 	fi
+	[ -f /usr/bin/chkfilelist ] && /usr/bin/chkfilelist
 }
 
 case "$COMMAND" in 
@@ -446,9 +455,11 @@ case "$COMMAND" in
 		done
 		#echo "127.0.0.1 localhost $(cat /etc/hostname)" > /etc/hosts
 		[ "$IP_ADDR" == "127.0.0.1" ] && echo "127.0.0.1 tazpanel.slitaz.org" >> /etc/hosts
-		for hostname in $ADDRESS; do 
+		for hostname in $ADDRESS; do
 				if [ "$hostname" = "www.slitaz.org" ]; then
 					echo "$IP_ADDR $hostname slitaz.org" >> /etc/hosts
+				elif [ "$hostname" = "pro.slitaz.org" ]; then
+					echo "$IP_ADDR $hostname slitaz.pro" >> /etc/hosts
 				else
 					echo "$IP_ADDR $hostname" >> /etc/hosts
 				fi
@@ -462,8 +473,8 @@ case "$COMMAND" in
 				echo "dhcp-option=option:router,$ROUTER_IP" >> /etc/dnsmasq.conf
 			fi
 		fi
-		if [ -d "$SLITAZ_DIR/$version/packages" ]; then
-			echo "$SLITAZ_DIR/$version/packages" > $LOCALSTATE/mirror
+		if [ -d "$SLITAZ_HOME/$version/packages" ]; then
+			echo "$SLITAZ_HOME/$version/packages" > $LOCALSTATE/mirror
 		fi
 		if [ "$COMMAND" = "tank-only" ]; then
 			[ -f $VHOST_TANK_FILE ] && ln -sf $VHOST_TANK_FILE /etc/lighttpd/vhosts.conf

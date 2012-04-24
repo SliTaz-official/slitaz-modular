@@ -1,14 +1,13 @@
 #!/bin/sh
-#*/5  * * * * /var/www/mirror-info/bin/makegraphs >/dev/null
+#*/5  * * * * /home/slitaz/www/tank/lib/makegraphs >/dev/null
 
 # RRD database directory
-rrdlog="/var/spool/rrd"
+rrdlog="/home/slitaz/www/graphs/log/rrd"
 
 # Images directory
-rrdgraph="/var/www/vhosts/pics/rrd"
+rrdgraph="/home/slitaz/www/graphs/images/rrd"
 
 # Colors
-#rrdcolors="--color SHADEA#EAE9EE --color SHADEB#EAE9EE --color BACK#EAE9EE" 
 rrdcolors="--color SHADEA#FFFFFF --color SHADEB#FFFFFF --color BACK#FFFFFF" 
 rrdgraphargs="-aPNG -i -z --alt-y-grid -w 600 -h 100 -r $rrdcolors"
 
@@ -18,20 +17,21 @@ rrdgraphargs="-aPNG -i -z --alt-y-grid -w 600 -h 100 -r $rrdcolors"
 updatecpudata() {
 	[ -e "$rrdlog/cpu.rrd" ] || rrdtool create $rrdlog/cpu.rrd --step=300 \
 			DS:user:COUNTER:600:0:500000000 \
+			DS:nice:COUNTER:600:0:500000000 \
 			DS:system:COUNTER:600:0:500000000 \
 			DS:idle:COUNTER:600:0:500000000 \
+			DS:iowait:COUNTER:600:0:500000000 \
+			DS:irq:COUNTER:600:0:500000000 \
+			DS:softirq:COUNTER:600:0:500000000 \
+			DS:celsius:GAUGE:600:0:50000 \
 			RRA:AVERAGE:0.5:1:576  RRA:AVERAGE:0.5:6:672 \
 			RRA:AVERAGE:0.5:24:732 RRA:AVERAGE:0.5:144:1460
-	grep '^cpu' /proc/stat | while read cpu user nice system idle misc; do
-		rrdtool update $rrdlog/cpu.rrd -t user:system:idle \
-			N:$(( $user + $nice )):$system:$idle
-		break
-	done
-
-	[ -e "$rrdlog/cpu2.rrd" ] &&
-	grep '^cpu' /proc/stat | while read cpu user nice system idle misc; do
-		rrdtool update $rrdlog/cpu2.rrd -t nice:user:system:idle \
-			N:$nice:$user:$system:$idle
+	grep '^cpu' /proc/stat | while read cpu user nice system idle iowait irq softirq misc; do
+		celsius=$(find /sys | grep /temp._input | xargs cat | \
+			awk '{ if ($0 > max) max=$0 } END { print max/1 }')
+		rrdtool update $rrdlog/cpu.rrd \
+			-t celsius:nice:user:system:idle:iowait:irq:softirq \
+			N:$celsius:$nice:$user:$system:$idle:$iowait:$irq:$softirq
 		break
 	done
 }
@@ -39,21 +39,29 @@ updatecpudata() {
 updatecpugraph() {
 	period=$1
 	info="$(grep '^model name' /proc/cpuinfo | cut -d: -f2 \
-		| sed 's/ * / /g' | head -1)"
+		| sed 's/ * / /g' | awk '
+{ s=$0 ; n++ }                    
+END { if (n > 1) printf " %dx",n; print s }')"
 	rrdtool graph "$rrdgraph/cpu-$period.png" --start -1$period \
 		$rrdgraphargs -l 0 -u 100 -t "cpu usage per $period [$info ]" \
 		DEF:user=$rrdlog/cpu.rrd:user:AVERAGE \
 		DEF:system=$rrdlog/cpu.rrd:system:AVERAGE \
 		DEF:idle=$rrdlog/cpu.rrd:idle:AVERAGE \
-		'CDEF:total=user,system,idle,+,+' \
+		DEF:nice=$rrdlog/cpu.rrd:nice:AVERAGE \
+		DEF:celsius=$rrdlog/cpu.rrd:celsius:AVERAGE \
+		'CDEF:total=user,system,idle,nice,+,+,+' \
 		'CDEF:userpct=100,user,total,/,*' \
 		'CDEF:systempct=100,system,total,/,*' \
 		'CDEF:idlepct=100,idle,total,/,*' \
+		'CDEF:nicepct=100,nice,total,/,*' \
+		'CDEF:temp=celsius,1000,/' \
 		'AREA:userpct#0000FF:user cpu usage' \
+		'STACK:nicepct#C0C0FF:nice cpu usage' \
 		'STACK:systempct#FF0000:system cpu usage' \
-		'STACK:idlepct#00FF00:idle cpu usage\j'
+		'STACK:idlepct#00FF00:idle cpu usage' \
+		'LINE1:temp#000000:temperature\g' \
+		'GPRINT:temp:MAX:max %2.0lfC\j'
 }
-
 
 updatememgraph() {
 	period=$1
@@ -115,15 +123,15 @@ updatememdata () {
 
 	while read tag count unit; do
 		case "$tag" in
-		MemTotal:)  memtotal=$(($count * 1024));;
-		MemFree:)   memfree=$(($count * 1024))
+		MemTotal:)  memtotal=$count;;
+		MemFree:)   memfree=$count
 			    memused=$(($memtotal - $memfree))
 			    memshared=0;;
-		MemShared:) memshared=$(($count * 1024));;
-		Buffers:)   membuffers=$(($count * 1024));;
-		Cached:)    memcache=$(($count * 1024));;
-		SwapTotal:) swaptotal=$(($count * 1024));;
-		SwapFree:)  swapfree=$(($count * 1024))
+		MemShared:) memshared=$count;;
+		Buffers:)   membuffers=$count;;
+		Cached:)    memcache=$count;;
+		SwapTotal:) swaptotal=$count;;
+		SwapFree:)  swapfree=$count
 			    swapused=$(( $swaptotal - $swapfree));;
 		esac
 	done < /proc/meminfo
@@ -151,6 +159,10 @@ updatediskgraph() {
 	info="[ $(fdisk -l 2> /dev/null | grep "^Disk $2:" | \
 		  sed "s|Disk $2: \(.*\), .*|\1|") ]"
 	if [ -e /sys/block/${2#/dev/}/device/iodone_cnt ]; then
+	err=$(printf "%d\n" $(cat /sys/block/${2#/dev/}/device/ioerr_cnt) )
+	done=$(printf "%d\n" $(cat /sys/block/${2#/dev/}/device/iodone_cnt) )
+	rate=$(echo | awk "BEGIN { printf \"%.0e\\n\",$err/$done }")
+	[ $err -eq 0 ] &&  rate="0"
 #		--right-axis-label "I/O state %"
 	rrdtool graph "$rrdgraph/disk-$period.png" --start -1$period \
 		$rrdgraphargs -t "disk access per $period $info" \
@@ -164,10 +176,12 @@ updatediskgraph() {
 		"CDEF:writepct=100,write,$maxdisk,/,*" \
 		"CDEF:errpct=100,err,req,/,*" \
 		"CDEF:donepct=100,done,req,/,*" \
+		"CDEF:errrate=err,done,/" \
 		'AREA:readpct#0000FF:sectors read from disk' \
+		"COMMENT:I/O error rate $rate" \
 		'STACK:writepct#00FF00:sectors written to disk' \
-		'LINE2:donepct#FFFF00:I/O complete' \
-		'LINE2:errpct#FF0000:I/O error\j'
+		'LINE2:donepct#FFFF00:% I/O complete' \
+		'LINE2:errpct#FF0000:% I/O error\j'
 	else
 	rrdtool graph "$rrdgraph/disk-$period.png" --start -1$period \
 		$rrdgraphargs -t "disk access per $period $info" \
@@ -219,6 +233,8 @@ updateifgraph() {
 		DEF:incoming=$rrdlog/$interface.rrd:incoming:AVERAGE \
 		DEF:outgoing=$rrdlog/$interface.rrd:outgoing:AVERAGE \
 		'AREA:incoming#00FF00:incoming traffic' \
+		'GPRINT:incoming:MAX:max input%8.3lf %sBps' \
+		'GPRINT:outgoing:MAX:max output%8.3lf %sBps' \
 		'LINE1:outgoing#0000FF:outgoing traffic\j'
 }
 
@@ -274,8 +290,9 @@ getdisk()
 	for i in /dev/* ; do 
 		[ $(stat -c "%02t%02T" $i) == $d ] || continue
 		echo $i
-		break
+		return
 	done
+	df $1 | sed '$!d;s/ .*$//'
 }
 
 ###
