@@ -1,7 +1,6 @@
 #!/bin/sh
 
-source /usr/lib/slitaz/libtaz
-source_lib commons
+source /lib/libtaz.sh
 check_root
 . /etc/slitaz/slitaz.conf
 
@@ -94,7 +93,7 @@ www() {
 	fi
 	[ -d $STABLE ] || mkdir -p $STABLE
 	[ -d $COOKING ] || mkdir -p $COOKING
-	[ -d $MAIN_WWW_DIR/pics/rrd ] || mkdir -p $MAIN_WWW_DIR/pics/rrd
+	[ -d $MAIN_WWW_DIR/graphs/images/rrd ] || mkdir -p $MAIN_WWW_DIR/graphs/images/rrd
 	
 	case "$b" in
 		website)
@@ -208,7 +207,7 @@ www() {
 			[ -d $MAIN_WWW_DIR/$b/incoming ] || ln -sf $SLITAZ_HOME/$version/incoming $MAIN_WWW_DIR/$b/incoming
 		;;
 		try)
-			[ -d $MAIN_WWW_DIR/tinycm ] || ln -sf $REPOS_DIR/tinycm $MAIN_WWW_DIR/tinycm ;;
+			[ -d $MAIN_WWW_DIR/tinycm ] || ln -sf $REPOS_DIR/tinycm $MAIN_WWW_DIR/try ;;
 		pkgs)
 			pwd=$(pwd)
 			if [ -d $PKGS_WWW_DIR ]; then
@@ -235,15 +234,21 @@ www() {
 			[ -d /var/www/mirror ] || ln -sf $MAIN_WWW_DIR/mirror /var/www/mirror
 			[ -d /var/www/mirror-info ] || ln -sf $MAIN_WWW_DIR/mirror-info /var/www/mirror-info
 			[ -d $MAIN_WWW_DIR/mirror-info/pics ] || mkdir -p $MAIN_WWW_DIR/mirror-info/pics
-			[ -d $MAIN_WWW_DIR/mirror-info/pics/rrd ] || ln -sf $MAIN_WWW_DIR/pics/rrd $MAIN_WWW_DIR/mirror-info/pics/rrd
+			[ -d $MAIN_WWW_DIR/mirror-info/pics/rrd ] || ln -sf $MAIN_WWW_DIR/graphs/images/rrd $MAIN_WWW_DIR/mirror-info/pics/rrd
 			[ -f $REPOS_DIR/slitaz-forge/mirror/files/etc/rsyncd.conf ] && cp -a $REPOS_DIR/slitaz-forge/mirror/files/etc/rsyncd.conf /etc/rsyncd.conf
 			[ -f $REPOS_DIR/slitaz-forge/mirror/files/etc/rsyncd.motd ] && cp -a $REPOS_DIR/slitaz-forge/mirror/files/etc/rsyncd.motd /etc/rsyncd.motd
 			[ -f $REPOS_DIR/slitaz-forge/mirror/files/usr/bin/chkfilelist ] && cp -a $REPOS_DIR/slitaz-forge/mirror/files/usr/bin/chkfilelist /usr/bin/chkfilelist
 			if [ -f /usr/bin/makegraphs ]; then
-				[ -f $MAIN_WWW_DIR/pics/makegraphs ] || cp -a /usr/bin/makegraphs $MAIN_WWW_DIR/pics/makegraphs
-				if [ ! $(grep -l "$MAIN_WWW_DIR/pics/makegraphs" $CRON_FILE) ]; then
+				[ -f $MAIN_WWW_DIR/graphs/makegraphs ] || cp -a /usr/bin/makegraphs $MAIN_WWW_DIR/graphs/makegraphs
+				if [ ! $(grep -l "$MAIN_WWW_DIR/graphs/makegraphs" $CRON_FILE) ]; then
 					echo "# Update system load graphics" >> $CRON_FILE
-					echo "*/5 * * * * $MAIN_WWW_DIR/pics/makegraphs" >> $CRON_FILE
+					echo "*/5 * * * * $MAIN_WWW_DIR/graphs/makegraphs" >> $CRON_FILE
+				fi
+			fi
+			if [ -f /usr/bin/chkfilelist ]; then
+				if [ ! $(grep -l "/usr/bin/chkfilelist" $CRON_FILE) ]; then
+					echo "# Update fileslist" >> $CRON_FILE
+					echo "0 */1 * * * /usr/bin/chkfilelist" >> $CRON_FILE
 				fi
 			fi
 		;;
@@ -262,7 +267,7 @@ www() {
 				fi
 			done
 			[ -d $MAIN_WWW_DIR/$b/images ] || mkdir -p $MAIN_WWW_DIR/$b/images
-			[ -d $MAIN_WWW_DIR/$b/graphs/rrd ] || ln -sf $MAIN_WWW_DIR/graphs/rrd $MAIN_WWW_DIR/$b/images/rrd
+			[ -d $MAIN_WWW_DIR/$b/graphs/images/rrd ] || ln -sf $MAIN_WWW_DIR/graphs/images/rrd $MAIN_WWW_DIR/$b/images/rrd
 			if [ -f /usr/share/awstats/extras/update ]; then
 				if [ ! $(grep -l "/usr/share/awstats/extras/update" $CRON_FILE) ]; then
 					echo "# Update Web stats" >> $CRON_FILE
@@ -270,10 +275,10 @@ www() {
 				fi
 			fi
 			if [ -f /usr/bin/makegraphs ]; then
-				[ -f $MAIN_WWW_DIR/pics/makegraphs ] || cp -a /usr/bin/makegraphs $MAIN_WWW_DIR/pics/makegraphs
-				if [ ! $(grep -l "$MAIN_WWW_DIR/pics/makegraphs" $CRON_FILE) ]; then
+				[ -f $MAIN_WWW_DIR/graphs/makegraphs ] || cp -a /usr/bin/makegraphs $MAIN_WWW_DIR/graphs/makegraphs
+				if [ ! $(grep -l "$MAIN_WWW_DIR/graphs/makegraphs" $CRON_FILE) ]; then
 					echo "# Update system load graphics" >> $CRON_FILE
-					echo "*/5 * * * * $MAIN_WWW_DIR/pics/makegraphs" >> $CRON_FILE
+					echo "*/5 * * * * $MAIN_WWW_DIR/graphs/makegraphs" >> $CRON_FILE
 				fi
 			fi
 		;;
@@ -344,6 +349,32 @@ www() {
 	esac
 }
 
+repo_setup() {
+	local repo="$1"
+	local contact="$2"
+	local desc="$3"
+	if [ ! -f $REPOS_DIR/$repo/.hg/hgrc-web ]; then
+		touch $REPOS_DIR/$repo/.hg/hgrc-web
+		cat "$REPOS_DIR/$repo/.hg/hgrc" >> $REPOS_DIR/$repo/.hg/hgrc-web
+		echo "[web]" >> $REPOS_DIR/$repo/.hg/hgrc-web
+		#[ -d $REPOS_DIR/$repo/.hg ] && echo "style = slitaz" >> $REPOS_DIR/$repo/.hg/hgrc-web
+		echo "staticurl = http://hg.slitaz.org/static/" >> $REPOS_DIR/$repo/.hg/hgrc-web
+		echo "push_ssl = false" >> $REPOS_DIR/$repo/.hg/hgrc-web
+		echo "allow_push = *" >> $REPOS_DIR/$repo/.hg/hgrc-web
+		#[ ! -f $REPOS_DIR/$repo/.hg/hgrc-pull ] && mv $REPOS_DIR/$repo/.hg/hgrc $REPOS_DIR/$repo/.hg/hgrc-pull
+		cp -a $REPOS_DIR/$repo/.hg/hgrc-web $REPOS_DIR/$repo/.hg/hgrc
+	fi
+	if [ ! $(grep -l 'name = ' $REPOS_DIR/$repo/.hg/hgrc ) ]; then
+		echo "name = "$repo"" >> $REPOS_DIR/$repo/.hg/hgrc
+	fi
+	if [ ! $(grep -l 'contact = ' $REPOS_DIR/$repo/.hg/hgrc ) ]; then
+		echo "contact = $contact" >> $REPOS_DIR/$repo/.hg/hgrc
+	fi
+	if [ ! $(grep -l 'description = ' $REPOS_DIR/$repo/.hg/hgrc) ]; then
+		echo "description = $desc" >> $REPOS_DIR/$repo/.hg/hgrc
+	fi
+}
+
 repos() {
 	for repo in $REPOS; do
 		[ -d $REPOS_DIR/$repo ] || continue
@@ -354,81 +385,39 @@ repos() {
 				[ -f /etc/mercurial/hgweb.config ] && sed -i "s|$REPOS_DIR|$REPOS_WEB_DIR|g" /etc/mercurial/hgweb.config
 			fi
 		fi
-		if [ ! -f $REPOS_DIR/$repo/.hg/hgrc-web ]; then
-			touch $REPOS_DIR/$repo/.hg/hgrc-web
-			cat "$REPOS_DIR/$repo/.hg/hgrc" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			echo "[web]" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			#[ -d $REPOS_DIR/$repo/.hg ] && echo "style = slitaz" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			echo "staticurl = http://hg.slitaz.org/static/" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			echo "push_ssl = false" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			echo "allow_push = *" >> $REPOS_DIR/$repo/.hg/hgrc-web
-			#[ ! -f $REPOS_DIR/$repo/.hg/hgrc-pull ] && mv $REPOS_DIR/$repo/.hg/hgrc $REPOS_DIR/$repo/.hg/hgrc-pull
-			cp -a $REPOS_DIR/$repo/.hg/hgrc-web $REPOS_DIR/$repo/.hg/hgrc
-		fi
-	
-		if [ ! $(grep -l 'name = ' $REPOS_DIR/$repo/.hg/hgrc ) ]; then
-			echo "name = $repo" >> $REPOS_DIR/$repo/.hg/hgrc
-		fi
-	
-		if [ ! $(grep -l 'contact = ' $REPOS_DIR/$repo/.hg/hgrc ) ]; then
-			[ "$repo" = "cookutils" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "my-cookutils" ] && echo "contact = Christopher Rogers" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "flavors" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "flavors-stable" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-base-files" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-boot-scripts" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-configs" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-dev-tools" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-doc" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-doc-wiki-data" ] && echo "contact = Christopher Rogers" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-forge" ] && echo "contact = Eric Joseph-Alexandre" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-modular" ] && echo "contact = Christopher Rogers" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-pizza" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-tools" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-vz" ] && echo "contact = Eric Joseph-Alexandre" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "ssfs" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazlito" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazpanel" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazpkg" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazusb" ] && echo "contact = Eric Joseph-Alexandre" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazwok" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "website" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "wok" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "wok-stable" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "wok-tank" ] && echo "contact = Christopher Rogers" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "wok-tiny" ] && echo "contact = Pascal Bellard" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "wok-undigest" ] && echo "contact = Christophe Lincoln" >> $REPOS_DIR/$repo/.hg/hgrc
-		fi
-	
-		if [ ! $(grep -l 'description = ' $REPOS_DIR/$repo/.hg/hgrc) ]; then
-			[ "$repo" = "cookutils" ] && echo "description = Utils to cook SliTaz packages" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "my-cookutils" ] && echo "description = More powerful version of cookutils" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "flavors" ] && echo "description = SliTaz Cooking flavors" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "flavors-stable" ] && echo "description = SliTaz Stable flavors" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-base-files" ] && echo "description = SliTaz base files" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-boot-scripts" ] && echo "description = SliTaz boot scripts" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-configs" ] && echo "description = SliTaz configuration files" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-dev-tools" ] && echo "description = SliTaz Developers Tools" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-doc" ] && echo "description = SliTaz system doc" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-doc-wiki-data" ] && echo "description = SliTaz documentation wiki content" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-forge" ] && echo "description = SliTaz Forge Config" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-modular" ] && echo "description = Scripts to make SliTaz Modular" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-pizza" ] && echo "description = SliTaz Online flavor builder" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-tools" ] && echo "description = SliTaz Tools and Tinyutils" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "slitaz-vz" ] && echo "description = SliTaz OpenVZ integration" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "ssfs" ] && echo "description = SliTaz Secure File Storage" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazlito" ] && echo "description = SliTaz Live Tool" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazpanel" ] && echo "description = Slitaz Administration Panel" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazpkg" ] && echo "description = SliTaz Packages manager" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazusb" ] && echo "description = SliTaz LiveUSB utility" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "tazwok" ] && echo "description = SliTaz Packages builder" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "website" ] && echo "description = SliTaz Website" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "wok" ] && echo "description = SliTaz Cooking wok" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "wok-stable" ] && echo "description = SliTaz Stable wok" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "wok-tank" ] && echo "description = SliTaz Tank Mirror wok" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "wok-tiny" ] && echo "description = Tiny SliTaz wok" >> $REPOS_DIR/$repo/.hg/hgrc
-			[ "$repo" = "wok-undigest" ] && echo "description = SliTaz Undigest wok" >> $REPOS_DIR/$repo/.hg/hgrc
-		fi
+		pankso='Christophe Lincoln'
+		bellard='Pascal Bellard'
+		eric='Eric Joseph-Alexandre'
+		godane='Christopher Rogers'
+		
+		[ "$repo" = "cookutils" ] && repo_setup "$repo" "$pankso" 'Utils to cook SliTaz packages'
+		[ "$repo" = "my-cookutils" ] && repo_setup "$repo" "$godane" 'More powerful version of cookutils'
+		[ "$repo" = "flavors" ] && repo_setup "$repo" "$pankso" 'SliTaz Cooking flavors'
+		[ "$repo" = "flavors-stable" ] && repo_setup "$repo" "$bellard" 'SliTaz Stable flavors'
+		[ "$repo" = "slitaz-base-files" ] && repo_setup "$repo" "$bellard" 'SliTaz base files'
+		[ "$repo" = "spk" ] && repo_setup "$repo" "$pankso" 'SliTaz Package Toolkit'
+		[ "$repo" = "slitaz-boot-scripts" ] && repo_setup "$repo" "$pankso" 'SliTaz boot scripts'
+		[ "$repo" = "slitaz-configs" ] && repo_setup "$repo" "$pankso" 'SliTaz configuration files'
+		[ "$repo" = "slitaz-dev-tools" ] && repo_setup "$repo" "$pankso" 'SliTaz Developers Tools'
+		[ "$repo" = "slitaz-doc" ] && repo_setup "$repo" "$pankso" 'SliTaz system doc'
+		[ "$repo" = "slitaz-doc-wiki-data" ] && repo_setup "$repo" "$godane" 'SliTaz documentation wiki content'
+		[ "$repo" = "slitaz-forge" ] && repo_setup "$repo" "$eric" 'SliTaz Forge Config'
+		[ "$repo" = "slitaz-modular" ] && repo_setup "$repo" "$godane" 'Scripts to make SliTaz Modular'
+		[ "$repo" = "slitaz-pizza" ] && repo_setup "$repo" "$bellard" 'SliTaz Online flavor builder'
+		[ "$repo" = "slitaz-tools" ] && repo_setup "$repo" "$pankso" 'SliTaz Tools and Tinyutils'
+		[ "$repo" = "slitaz-vz" ] && repo_setup "$repo" "$eric" 'SliTaz OpenVZ integration'
+		[ "$repo" = "sshfs" ] && repo_setup "$repo" "$pankso" 'SliTaz Secure File Storage'
+		[ "$repo" = "tazlito" ] && repo_setup "$repo" "$bellard" 'SliTaz Live Tool'
+		[ "$repo" = "tazpanel" ] && repo_setup "$repo" "$pankso" 'Slitaz Administration Panel'
+		[ "$repo" = "tazpkg" ] && repo_setup "$repo" "$pankso" 'SliTaz Packages manager'
+		[ "$repo" = "tazusb" ] && repo_setup "$repo" "$eric" 'SliTaz LiveUSB utility'
+		[ "$repo" = "tazwok" ] && repo_setup "$repo" "$pankso" 'SliTaz Packages builder'
+		[ "$repo" = "website" ] && repo_setup "$repo" "$pankso" 'SliTaz Website'
+		[ "$repo" = "wok" ] && repo_setup "$repo" "$pankso" 'SliTaz Cooking wok'
+		[ "$repo" = "wok-stable" ] && repo_setup "$repo" "$pankso" 'SliTaz Stable wok'
+		[ "$repo" = "wok-tank" ] && repo_setup "$repo" "$godane" 'SliTaz Tank Mirror wok'
+		[ "$repo" = "wok-tiny" ] && repo_setup "$repo" "$bellard" 'Tiny SliTaz wok'
+		[ "$repo" = "wok-undigest" ] && repo_setup "$repo" "$pankso" 'SliTaz Undigest wok'
 	done
 }
 
@@ -442,6 +431,15 @@ up_src_links() {
 		done
 	fi
 	[ -f /usr/bin/chkfilelist ] && /usr/bin/chkfilelist
+	local rel="stable cooking"
+	for i in $rel; do
+		if [ -d $MAIN_WWW_DIR/mirror/packages/$i ]; then
+			echo -n "" > $MAIN_WWW_DIR/mirror/packages/$i/.filelist
+			chown www.www $MAIN_WWW_DIR/mirror/packages/$i/.filelist
+			echo -n "" > $MAIN_WWW_DIR/mirror/packages/$i/.folderlist
+			chown www.www $MAIN_WWW_DIR/mirror/packages/$i/.folderlist
+		fi
+	done
 }
 
 case "$COMMAND" in 
@@ -483,7 +481,7 @@ case "$COMMAND" in
 		else
 			[ -f $VHOST_FILE ] && ln -sf $VHOST_FILE /etc/lighttpd/vhosts.conf
 		fi
-		[ -d $MAIN_WWW_DIR/pics/rrd ] || mkdir -p $MAIN_WWW_DIR/pics/rrd
+		[ -d $MAIN_WWW_DIR/graphs/images/rrd ] || mkdir -p $MAIN_WWW_DIR/graphs/images/rrd
 		chown -R www.www $MAIN_WWW_DIR
 		up_src_links		
 		[ -x /etc/init.d/lighttpd ] && /etc/init.d/lighttpd start
