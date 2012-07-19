@@ -52,8 +52,10 @@ LOCAL_REPOSITORY="$SLITAZ"
 PACKAGES_REPOSITORY="$PKGS"
 INCOMING_REPOSITORY="$INCOMING"
 SOURCES_REPOSITORY="$SRC"
-HG_LIST="cookutils flavors flavors-stable slitaz-base-files slitaz-configs slitaz-doc slitaz-forge slitaz-modular slitaz-pizza slitaz-tools slitaz-vz ssfs tazlito tazpanel tazpkg tazusb tazweb tazwok wok wok-stable wok-tiny wok-undigest"
-MY_HG_LIST="piratebox slitaz-cloud slitaz-dev-tools tazpkg-tank slitaz-doc-wiki-data slitaz-boot-scripts my-cookutils wok-tank website"
+CACHE_DIR="/var/cache/tazpkg"
+NCPU="-processors 3"
+HG_LIST="cookutils flavors flavors-stable nim-tools slitaz-arm slitaz-base-files slitaz-configs slitaz-doc slitaz-forge slitaz-modular slitaz-pizza slitaz-tools slitaz-vz spk ssfs tazbug tazlito tazpanel tazpkg tazusb tazweb tazwok tiny-slitaz website wok wok-stable wok-tiny wok-undigest"
+MY_HG_LIST="piratebox slitaz-cloud slitaz-dev-tools tazpkg-tank slitaz-doc-wiki-data slitaz-boot-scripts my-cookutils wok-tank"
 MY_HG_URL="https://bitbucket.org/godane"
 
 error () { echo -e "\033[1;31;40m!!! \033[1;37;40m$@\033[1;0m"; }
@@ -531,9 +533,9 @@ _mksquash () {
     info "Creating SquashFS image. This may take some time..."
     start=$(date +%s)
     if [ "${QUIET}" = "y" ]; then
-        mksquashfs "${1}" "${sqimg}" -noappend ${MKOPTION} -comp ${COMPRESSION} >/dev/null
+        mksquashfs "${1}" "${sqimg}" ${NCPU} -noappend ${MKOPTION} -comp ${COMPRESSION} >/dev/null
     else
-        mksquashfs "${1}" "${sqimg}" -noappend ${MKOPTION} -comp ${COMPRESSION}
+        mksquashfs "${1}" "${sqimg}" ${NCPU} -noappend ${MKOPTION} -comp ${COMPRESSION}
     fi
     minutes=$(echo $start $(date +%s) | awk '{ printf "%0.2f",($2-$1)/60 }')
     info "Image creation done in $minutes minutes."
