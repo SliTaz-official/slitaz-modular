@@ -28,8 +28,8 @@ slitaz-boot-scripts
 linux-squashfs
 aufs
 aufs-utils
-util-linux-ng-uuid
-util-linux-ng-blkid
+util-linux-uuid
+util-linux-blkid
 pciids
 pciutils
 libusb

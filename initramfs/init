@@ -2,7 +2,7 @@
 
 success()
 {
-	cat > /tmp/init
+	cat > /run/init
 	[ -d /proc/sys ] && umount /proc
 	echo -e "\\033[70G[ \\033[1;32mOK\\033[0;39m ]"
 	exit
@@ -10,8 +10,7 @@ success()
 
 launch_init()
 {
-	mount --move /dev/pts /mnt/dev/pts
-	mount --move /dev/shm /mnt/dev/shm
+	mount --move /run /mnt/run
 	success <<EOT
 exec /sbin/switch_root mnt /sbin/init
 EOT
@@ -68,6 +67,8 @@ try_init()
 		fi
 		mount /dev/mapper/$dmlabel /mnt
 	fi
+	grep -q subroot= /proc/cmdline && return
+	grep -q loopfs= /proc/cmdline && return
 	if [ -d /mnt/etc ]; then
 		umount /sys
 		[ -n "$1" ] && for i in $@ ; do
@@ -103,6 +104,7 @@ while read line; do
 	*raid0*)	modprobe raid0 ;;
 	*raid1*)	modprobe raid1 ;;
 	*raid[456]*)	modprobe raid456 ;;
+	*mirror*)	modprobe dm-mirror ;;
 	esac
 done
 }
@@ -110,14 +112,12 @@ done
 if [ "$1" != "logged" ]; then
 	mount -t devpts devpts /dev/pts
 	mount -t tmpfs tmpfs /dev/shm
-	script -qc '/init logged' /dev/shm/boot.log
-	. /tmp/init
+	mount -t tmpfs tmpfs /run
+	script -qc '/init logged' /run/boot.log
+	. /run/init
 else
-mountpoint -q /proc || mount -t proc proc /proc -o nosuid,noexec,nodev
-mountpoint -q /sys  || mount -t sysfs sys /sys -o nosuid,noexec,nodev
-mountpoint -q /run  || mount -t tmpfs run /run -o mode=0755,nosuid,nodev
-mountpoint -q /dev  || mount -t devtmpfs dev /dev -o mode=0755,nosuid
-
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
 if grep -q dmraid= /proc/cmdline; then
 	root="$(sed 's/.*dmraid=\([^ ]*\).*/\1/' < /proc/cmdline)"
 	echo -n "Switching / to dmraid $root..."
@@ -181,17 +181,14 @@ if grep -q subroot= /proc/cmdline; then
 	subroot="/$(sed 's/.*subroot=\([^ ]*\).*/\1/' < /proc/cmdline)" &&
 	echo -n "Chrooting to $subroot..."
 	mount --move /dev/pts /mnt$subroot/dev/pts
-	shm=$subroot/dev/shm
-	mount --move /dev/shm /mnt$shm &&
-	if mv /usr/share/boot/busybox-static /mnt$shm 2> /dev/null; then
-		success <<EOT
-exec /sbin/switch_root mnt $shm/busybox-static chroot $subroot /sbin/init
+	run=$subroot/run
+	mount --move /run /mnt$run
+	cp $(LD_TRACE_LOADED_OBJECTS=1 /lib/ld*.so /usr/sbin/chroot | sed \
+	     's|.*=> \(/lib/l[^ ]*\).*|\1|;/^\//!d') /usr/sbin/chroot /mnt$run
+	success <<EOT
+export LD_LIBRARY_PATH=$run:/lib
+exec /sbin/switch_root mnt $run/$(cd /mnt$run ; ls ld-*) $run/chroot $subroot /sbin/init
 EOT
-	else
-		success <<EOT
-exec chroot /mnt$subroot /sbin/init
-EOT
-	fi
 fi
 echo -n "Switching / to tmpfs"
 size="$(grep rootfssize= < /proc/cmdline | \
@@ -199,8 +196,8 @@ size="$(grep rootfssize= < /proc/cmdline | \
 free=$(busybox free | busybox awk '/Mem:/ { print int(($4*100)/$3) }')
 umount /proc
 [ -n "$size" ] || size="-o size=90%"
-echo "exec /sbin/init" > /tmp/init
-if [ $free -lt 50 ] || ! mount -t tmpfs $size tmpfs /mnt; then
+echo "exec /sbin/init" > /run/init
+if [ $free -lt 100 ] || ! mount -t tmpfs $size tmpfs /mnt; then
 	echo -e "\\033[70G[ \\033[1;33mSkipped\\033[0;39m]"
 	exit
 fi
