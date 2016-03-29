@@ -408,7 +408,7 @@ repos() {
 		[ "$repo" = "slitaz-vz" ] && repo_setup "$repo" "$eric" 'SliTaz OpenVZ integration'
 		[ "$repo" = "sshfs" ] && repo_setup "$repo" "$pankso" 'SliTaz Secure File Storage'
 		[ "$repo" = "tazlito" ] && repo_setup "$repo" "$bellard" 'SliTaz Live Tool'
-		[ "$repo" = "tazpanel" ] && repo_setup "$repo" "$pankso" 'Slitaz Administration Panel'
+		[ "$repo" = "tazpanel" ] && repo_setup "$repo" "$pankso" 'SliTaz Administration Panel'
 		[ "$repo" = "tazpkg" ] && repo_setup "$repo" "$pankso" 'SliTaz Packages manager'
 		[ "$repo" = "tazusb" ] && repo_setup "$repo" "$eric" 'SliTaz LiveUSB utility'
 		[ "$repo" = "tazwok" ] && repo_setup "$repo" "$pankso" 'SliTaz Packages builder'

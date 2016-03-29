@@ -21,7 +21,7 @@ SliTaz peut être utilisé pour réparer, et tester un disque dur avec fdisk,
 hdparm, ou les outils e2fsprogs. Le système et aussi pleinement installable
 avec l'outil slitaz-installer.
 
-Slitaz GNU/Linux est distribué sans aucune garantie et publié car
+SliTaz GNU/Linux est distribué sans aucune garantie et publié car
 potentiellement utile. SliTaz n'as aucune prétention, nous ne sommes que des
 passionnés par l'informatique libre, qui aimons la liberté et le partage. Sur
 le système vous trouverez le manuel d'utilisateur et la documentation dans :
