@@ -493,7 +493,7 @@ backup_src() {
 		done
 		cd $SRCISO_DIR
 		info "Make md5sum file for sources"
-		find * -not -type d | grep -v md5sum | xargs md5sum > md5sum
+		find * -not -type d -print0 | xargs -0 md5sum | grep -v md5sum > md5sum
 		cd $WORKING
 	fi
 	
