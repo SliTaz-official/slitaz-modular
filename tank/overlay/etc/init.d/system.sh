@@ -80,7 +80,7 @@ fi
 [ -x /usr/bin/tazpanel ] && tazpanel start
 
 # Auto recharge packages list (after network connection of course)
-[ "$RECHARGE_PACKAGES_LIST" == "yes" ] && tazpkg recharge &
+[ "$RECHARGE_PACKAGES_LIST" = "yes" ] && tazpkg recharge &
 
 # Locale config. Do a gui config for both lang/keymap.
 echo "Checking if /etc/locale.conf exists... "

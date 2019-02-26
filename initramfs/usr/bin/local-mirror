@@ -452,7 +452,7 @@ case "$COMMAND" in
 			fi
 		done
 		#echo "127.0.0.1 localhost $(cat /etc/hostname)" > /etc/hosts
-		[ "$IP_ADDR" == "127.0.0.1" ] && echo "127.0.0.1 tazpanel.slitaz.org" >> /etc/hosts
+		[ "$IP_ADDR" = "127.0.0.1" ] && echo "127.0.0.1 tazpanel.slitaz.org" >> /etc/hosts
 		for hostname in $ADDRESS; do
 				if [ "$hostname" = "www.slitaz.org" ]; then
 					echo "$IP_ADDR $hostname slitaz.org" >> /etc/hosts

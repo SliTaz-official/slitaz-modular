@@ -153,7 +153,7 @@ END { print max }' | sed 's/,/./'
 
 updatediskgraph() {
 	period=$1
-	[ "$period" == "day" ] && maxdisk="$(getmax disk)"
+	[ "$period" = "day" ] && maxdisk="$(getmax disk)"
 	info=""
 	[ -r $2 ] &&
 	info="[ $(fdisk -l 2> /dev/null | grep "^Disk $2:" | \
@@ -288,7 +288,7 @@ getdisk()
 	local i
 	d=$(stat -c %04D $1)
 	for i in /dev/* ; do 
-		[ $(stat -c "%02t%02T" $i) == $d ] || continue
+		[ $(stat -c "%02t%02T" $i) = $d ] || continue
 		echo $i
 		return
 	done

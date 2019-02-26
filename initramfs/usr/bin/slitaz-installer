@@ -381,7 +381,7 @@ prepare_partitions()
 	fi
 	sleep 2
 
-	if [ "$MKFS_TARGET_DEV" == "ext3" ]; then
+	if [ "$MKFS_TARGET_DEV" = "ext3" ]; then
 		echo "XXX" && echo 50
 		echo -e "\nExecuting mkfs.ext3 on $TARGET_DEV"
 		echo "XXX"
@@ -393,7 +393,7 @@ prepare_partitions()
 		sleep 2
 	fi
 
-	if [ "$MKFS_HOME" == "ext3" ]; then
+	if [ "$MKFS_HOME" = "ext3" ]; then
 		echo "XXX" && echo 70
 		echo -e "\nExecuting mkfs.ext3 on $HOME_DEV"
 		echo "XXX"
@@ -422,7 +422,7 @@ prepare_partitions()
 # Get a clean target device (15%).
 clean_target()
 {
-	if [ "$CLEAN" == "clean" ]; then
+	if [ "$CLEAN" = "clean" ]; then
 		echo "XXX" && echo 15
 		echo -e "\nCleaning the root partition ($TARGET_DEV)..."
 		echo "XXX"
@@ -1061,7 +1061,7 @@ you can do so later by looking at the following list: \n\n
 	echo -e "\nInstalling any packages..."
 	echo "XXX"
 	sleep 2
-	if [ "$packages" == "0" ]; then
+	if [ "$packages" = "0" ]; then
 		echo "packages to install: 0" >> $LOG
 	else
 		onepkg=$((48/$packages))
