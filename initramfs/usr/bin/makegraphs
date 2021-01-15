@@ -38,7 +38,7 @@ updatecpudata() {
 
 updatecpugraph() {
 	period=$1
-	info="$(grep '^model name' /proc/cpuinfo | cut -d: -f2 \
+	info="$(grep '^model name' /etc/cpuinfo | cut -d: -f2 \
 		| sed 's/ * / /g' | awk '
 { s=$0 ; n++ }                    
 END { if (n > 1) printf " %dx",n; print s }')"
